@@ -1,9 +1,10 @@
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type DragEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { cancelUpload, confirmUpload, stageUpload, updateUpload } from "../api/client.js";
 import type { UploadDuplicate, UploadPreview, UploadResult } from "../api/types.js";
 import { fileSizeLabel } from "../shared/format.js";
 import { useDebouncedValue } from "../shared/use-debounced-value.js";
+import { useDocumentTitle } from "../shared/use-document-title.js";
 
 type PreviewItem = { step: "preview"; preview: UploadPreview; busy: boolean; error: string | null };
 
@@ -165,7 +166,9 @@ function ItemStatus({ item }: { item: UploadItem }) {
 
 /** Lets either of us add EPUBs: each file is previewed (destination, possible duplicates) and confirmed one by one. */
 export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void }) {
+  useDocumentTitle("Ajouter des livres");
   const [items, setItems] = useState<UploadItem[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const nextKey = useRef(0);
 
   function replaceItem(key: number, next: UploadStep) {
@@ -176,9 +179,20 @@ export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void 
     setItems((current) => current.map((item) => (item.key === key && item.step === "preview" ? { ...item, ...patch(item) } : item)));
   }
 
-  async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
+  function handleInput(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
+    void handleFiles(files);
+  }
+
+  function handleDrop(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+    // Folders and non-EPUB files are left out quietly; the server would reject them anyway.
+    void handleFiles(Array.from(event.dataTransfer.files).filter((file) => /\.epub$/i.test(file.name)));
+  }
+
+  async function handleFiles(files: File[]) {
     for (const file of files) {
       const key = nextKey.current++;
       setItems((current) => [...current, { key, fileName: file.name, step: "uploading" }]);
@@ -223,19 +237,30 @@ export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void 
   }
 
   return (
-    <main className="upload-page">
-      <Link to="/" className="back-link">
-        ← Retour au catalogue
-      </Link>
-      <h1>Ajouter des livres</h1>
-      <p className="upload-help">
-        Chaque EPUB est renommé d'après ses métadonnées (corrigeables ci-dessous si elles sont fausses), rangé dans{" "}
-        <code>Books/Lettre/Auteur/</code> et envoyé sur MEGA. Rien n'est ajouté avant confirmation.
-      </p>
-      <label className="button primary upload-choose">
-        <input type="file" accept=".epub,application/epub+zip" multiple onChange={(event) => void handleFiles(event)} />
-        Choisir des fichiers EPUB
-      </label>
+    <main className="page upload-page">
+      <header className="page-header">
+        <h1>Ajouter des livres</h1>
+        <p className="page-subtitle">
+          Chaque EPUB est renommé d'après ses métadonnées (corrigeables si elles sont fausses), rangé dans <code>Books/Lettre/Auteur/</code> et
+          envoyé sur MEGA. Rien n'est ajouté avant confirmation.
+        </p>
+      </header>
+      <div
+        className={`upload-drop${isDragging ? " is-dragging" : ""}`}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+      >
+        <p>Glisse des fichiers EPUB ici</p>
+        <span className="upload-drop-or">ou</span>
+        <label className="button primary upload-choose">
+          <input type="file" accept=".epub,application/epub+zip" multiple onChange={handleInput} />
+          Choisir des fichiers
+        </label>
+      </div>
       <ul className="upload-list">
         {items.map((item) => (
           <li key={item.key} className={`upload-item is-${item.step}`}>

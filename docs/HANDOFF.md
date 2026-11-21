@@ -107,7 +107,23 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
 - Non testé sur le serveur cible : seulement `docker build` + `docker run` ici (WSL). Le conteneur tourne en `node` (uid 1000) :
   si `./data`/`./books` sont créés par root sur l'hôte, les passer en `chown 1000:1000`.
 
+## Refonte UI/UX (2026-11-21)
+
+- En-tête : logo + nav (Auteurs, Ajouter) + indicateur de synchro en pastille (détails et bouton dans un popover).
+- Catalogue : étagère « Ajoutés récemment » sur l'accueil, « Afficher plus » à la place des pages (`page=N` dans l'URL
+  signifie « pages 1 à N affichées », rechargées en parallèle), puces de filtres actifs, filtres repliés sur mobile,
+  squelettes de chargement, placeholder de couverture coloré par titre, raccourci `/` vers la recherche.
+- Fiche livre : résumé replié au-delà de 600 caractères, étagère « Aussi de <auteur> », mise en page mobile compacte.
+- Page `/authors` : index A–Z avec filtre, construit sur `/api/facets`.
+- Page d'ajout : glisser-déposer. Favicon SVG, titre d'onglet par page.
+- Pas de test de composants (pas de Testing Library, décision maintenue) ; vérifié par captures Chrome headless
+  (`chrome.exe --headless=new --screenshot`, voir `data/shots/` localement). Attention : `@fastify/static` en
+  `wildcard: false` n'apprend les fichiers qu'au démarrage → redémarrer le serveur après chaque `npm run build -w web`.
+- Donnée à nettoyer un jour : la table `authors` est unique sans casse mais avec accents (« Agnès Martin-Lugand » et
+  « Agnes Martin-lugand » coexistent) ; fusionner sur `toSortKey` serait une migration.
+
 ## Plus tard
 
 - Phase 2 : demandes de livres (formulaire, liste, statut).
+- Thème clair à vérifier visuellement (les captures headless sortent en sombre).
 - Réécrire l'OPF dans l'EPUB quand titre/auteurs sont corrigés à l'upload (aujourd'hui la correction ne vit que dans la base).

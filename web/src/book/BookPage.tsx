@@ -1,12 +1,61 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
-import { ApiError, fetchBook, fileUrl } from "../api/client.js";
+import { ApiError, fetchBook, fetchBooks, fileUrl } from "../api/client.js";
 import type { BookDetails } from "../api/types.js";
 import { BookCover } from "../catalog/BookCard.js";
-import { dateTimeLabel, fileSizeLabel, languageLabel } from "../shared/format.js";
+import { BookShelf } from "../catalog/BookShelf.js";
+import { countLabel, dateTimeLabel, fileSizeLabel, languageLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
+import { useDocumentTitle } from "../shared/use-document-title.js";
+
+const SHELF_SIZE = 12;
+// Beyond this many characters the description is folded behind "Lire la suite".
+const DESCRIPTION_FOLD_LENGTH = 600;
 
 function authorLink(author: string): string {
   return `/?${new URLSearchParams({ author })}`;
+}
+
+function Description({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > DESCRIPTION_FOLD_LENGTH;
+  return (
+    <div className="book-description">
+      <p className={`book-description-text${isLong && !expanded ? " is-folded" : ""}`}>{text}</p>
+      {isLong ? (
+        <button type="button" className="link-button" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? "Réduire" : "Lire la suite"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function AlsoByAuthor({ book }: { book: BookDetails }) {
+  const author = book.authors[0] ?? null;
+  const others = useAsync(
+    (signal) => (author ? fetchBooks({ query: "", author, language: "", sort: "title", page: 1, pageSize: SHELF_SIZE + 1 }, signal) : Promise.resolve(null)),
+    [author, book.id],
+  );
+  if (!author) {
+    return null;
+  }
+  const items = others.data ? others.data.items.filter((other) => other.id !== book.id).slice(0, SHELF_SIZE) : null;
+  const total = others.data ? others.data.total - 1 : 0;
+  return (
+    <BookShelf
+      title={`Aussi de ${author}`}
+      books={items}
+      skeletonCount={4}
+      action={
+        total > SHELF_SIZE ? (
+          <Link to={authorLink(author)} className="shelf-link">
+            {countLabel(total, "livre")} →
+          </Link>
+        ) : null
+      }
+    />
+  );
 }
 
 function BookDetailsView({ book }: { book: BookDetails }) {
@@ -42,8 +91,8 @@ function BookDetailsView({ book }: { book: BookDetails }) {
             Télécharger l'EPUB
           </a>
         </div>
-        {book.description ? <p className="book-details-description">{book.description}</p> : null}
       </div>
+      {book.description ? <Description text={book.description} /> : null}
     </article>
   );
 }
@@ -77,16 +126,22 @@ export function BookPage() {
     (signal) => (Number.isInteger(bookId) ? fetchBook(bookId, signal) : Promise.reject(new ApiError(404, "Unknown book"))),
     [bookId],
   );
+  useDocumentTitle(book.data?.title ?? null);
 
   return (
-    <main className="book-page">
+    <main className="page book-page">
       <BackToCatalogLink />
       {book.status === "error" ? (
         <p className="error" role="alert">
           {book.error instanceof ApiError && book.error.status === 404 ? "Ce livre n'existe pas ou plus." : book.error.message}
         </p>
       ) : null}
-      {book.data ? <BookDetailsView book={book.data} /> : null}
+      {book.data ? (
+        <>
+          <BookDetailsView book={book.data} />
+          <AlsoByAuthor book={book.data} />
+        </>
+      ) : null}
     </main>
   );
 }

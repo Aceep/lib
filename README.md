@@ -36,5 +36,7 @@ npm test && npm run typecheck
 ```
 
 Variables utiles en dev : `BOOKS_DIR` (défaut `books`), `DATA_DIR` (défaut `data`), `RCLONE_REMOTE`, `SYNC_CRON=off`.
+Pour servir le front depuis Fastify en dev (`npm run build -w web` puis le serveur seul), redémarrer le serveur après
+chaque build : les fichiers statiques sont enregistrés au démarrage.
 Sans `RCLONE_REMOTE`, les uploads restent locaux. Outils ponctuels : `npm run index -w server`,
 `npm run duplicates -w server -- <dossier>`, `npm run plan-layout -w server -- …` (voir `docs/HANDOFF.md`).

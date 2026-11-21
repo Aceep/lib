@@ -25,6 +25,28 @@ export function dateTimeLabel(isoDate: string): string {
   return dateTimeFormat.format(new Date(isoDate));
 }
 
+const relativeTimeFormat = new Intl.RelativeTimeFormat("fr", { numeric: "auto" });
+
+/** "il y a 3 min", "hier"… for a past or future instant. */
+export function relativeTimeLabel(isoDate: string, now = Date.now()): string {
+  const minutes = Math.round((new Date(isoDate).getTime() - now) / 60_000);
+  if (Math.abs(minutes) < 1) {
+    return "à l'instant";
+  }
+  if (Math.abs(minutes) < 60) {
+    return relativeTimeFormat.format(minutes, "minute");
+  }
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) {
+    return relativeTimeFormat.format(hours, "hour");
+  }
+  return relativeTimeFormat.format(Math.round(hours / 24), "day");
+}
+
+export function countLabel(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count > 1 ? plural : singular}`;
+}
+
 export function authorsLabel(authors: string[]): string {
   return authors.length > 0 ? authors.join(", ") : "Auteur inconnu";
 }

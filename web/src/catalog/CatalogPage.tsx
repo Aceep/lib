@@ -1,66 +1,77 @@
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { fetchBooks, fetchFacets } from "../api/client.js";
+import type { BookPage, BookSummary } from "../api/types.js";
+import { countLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
-import { BookCard } from "./BookCard.js";
+import { useDocumentTitle } from "../shared/use-document-title.js";
+import { BookCard, BookCardSkeleton } from "./BookCard.js";
+import { BookShelf } from "./BookShelf.js";
 import { CatalogFilters } from "./CatalogFilters.js";
 import { type CatalogParams, PAGE_SIZE, readCatalogParams, updateCatalogParams, writeCatalogParams } from "./catalog-params.js";
 
-function Pagination({ page, pageCount, onPageChange }: { page: number; pageCount: number; onPageChange: (page: number) => void }) {
-  if (pageCount <= 1) {
-    return null;
-  }
-  return (
-    <nav className="pagination" aria-label="Pagination">
-      <button type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-        ← Précédent
-      </button>
-      <span>
-        Page {page} / {pageCount}
-      </span>
-      <button type="button" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)}>
-        Suivant →
-      </button>
-    </nav>
+const RECENT_SHELF_SIZE = 12;
+
+type LoadedBooks = { items: BookSummary[]; total: number };
+
+/** `page` in the URL means "pages 1 to N are shown", so a reload or the back button restores the whole list. */
+async function fetchPagesUpTo(params: CatalogParams, signal: AbortSignal): Promise<LoadedBooks> {
+  const pages = await Promise.all(
+    Array.from({ length: params.page }, (_, index) => fetchBooks({ ...params, page: index + 1, pageSize: PAGE_SIZE }, signal)),
   );
+  return { items: pages.flatMap((page: BookPage) => page.items), total: pages[0]?.total ?? 0 };
 }
 
-function resultCountLabel(total: number): string {
-  if (total === 0) {
-    return "Aucun livre";
-  }
-  return `${total} livre${total > 1 ? "s" : ""}`;
+function pageTitle(params: CatalogParams): string | null {
+  if (params.query) return `« ${params.query} »`;
+  if (params.author) return params.author;
+  return null;
 }
 
 export function CatalogPage({ libraryVersion }: { libraryVersion: number }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const params = readCatalogParams(searchParams);
+  const hasFilters = Boolean(params.query || params.author || params.language);
+  const isHome = !hasFilters && params.sort === "relevance";
+  useDocumentTitle(pageTitle(params));
 
-  const books = useAsync(
-    (signal) => fetchBooks({ ...params, pageSize: PAGE_SIZE }, signal),
-    [params.query, params.author, params.language, params.sort, params.page, libraryVersion],
-  );
+  const books = useAsync((signal) => fetchPagesUpTo(params, signal), [params.query, params.author, params.language, params.sort, params.page, libraryVersion]);
   const facets = useAsync((signal) => fetchFacets(signal), [libraryVersion]);
+  const recent = useAsync(
+    (signal) => (isHome ? fetchBooks({ ...params, sort: "recent", page: 1, pageSize: RECENT_SHELF_SIZE }, signal) : Promise.resolve(null)),
+    [isHome, libraryVersion],
+  );
 
-  function applyChange(change: Partial<CatalogParams>) {
+  function applyChange(change: Partial<CatalogParams>, { replace = false } = {}) {
     // Typing in the search box should not stack one history entry per word.
     const isTyping = Object.keys(change).length === 1 && "query" in change;
-    setSearchParams(writeCatalogParams(updateCatalogParams(params, change)), { replace: isTyping });
+    setSearchParams(writeCatalogParams(updateCatalogParams(params, change)), { replace: replace || isTyping });
   }
 
-  function changePage(page: number) {
-    applyChange({ page });
-    window.scrollTo({ top: 0 });
-  }
-
-  const hasFilters = Boolean(params.query || params.author || params.language);
-  const pageCount = books.data ? Math.ceil(books.data.total / books.data.pageSize) : 0;
+  const total = books.data?.total ?? 0;
+  const shown = books.data?.items.length ?? 0;
+  const hasMore = shown < total;
 
   return (
     <main className="catalog">
       <CatalogFilters params={params} facets={facets.data} onChange={applyChange} />
 
+      {isHome ? (
+        <BookShelf
+          title="Ajoutés récemment"
+          books={recent.data?.items ?? null}
+          action={
+            <Link to="/?sort=recent" className="shelf-link">
+              Voir tout →
+            </Link>
+          }
+        />
+      ) : null}
+
       <div className="catalog-summary" aria-live="polite">
-        {books.data ? <span>{resultCountLabel(books.data.total)}</span> : null}
+        <h2 className="catalog-heading">
+          {isHome ? "Tous les livres" : "Résultats"}
+          {books.data ? <span className="catalog-count"> · {total === 0 ? "aucun livre" : countLabel(total, "livre")}</span> : null}
+        </h2>
         {hasFilters ? (
           <button type="button" className="link-button" onClick={() => setSearchParams(new URLSearchParams())}>
             Effacer les filtres
@@ -79,19 +90,26 @@ export function CatalogPage({ libraryVersion }: { libraryVersion: number }) {
 
       {books.data && books.data.items.length === 0 ? (
         <p className="empty-state">
-          {hasFilters ? "Aucun livre ne correspond à cette recherche." : "Le catalogue est vide. Lance une synchro pour l'alimenter."}
+          {hasFilters ? "Aucun livre ne correspond à cette recherche." : "Le catalogue est vide : lance une synchro ou ajoute des livres."}
         </p>
       ) : null}
 
-      {books.data ? (
-        <ul className={`book-grid${books.status === "loading" ? " is-loading" : ""}`}>
-          {books.data.items.map((book) => (
-            <BookCard key={book.id} book={book} />
-          ))}
-        </ul>
-      ) : null}
+      <ul className={`book-grid${books.status === "loading" && books.data ? " is-loading" : ""}`}>
+        {books.data
+          ? books.data.items.map((book) => <BookCard key={book.id} book={book} />)
+          : Array.from({ length: PAGE_SIZE }, (_, index) => <BookCardSkeleton key={index} />)}
+      </ul>
 
-      <Pagination page={params.page} pageCount={pageCount} onPageChange={changePage} />
+      {books.data && hasMore ? (
+        <div className="load-more">
+          <span className="load-more-count">
+            {shown} sur {total}
+          </span>
+          <button type="button" className="button" disabled={books.status === "loading"} onClick={() => applyChange({ page: params.page + 1 }, { replace: true })}>
+            {books.status === "loading" ? "Chargement…" : "Afficher plus"}
+          </button>
+        </div>
+      ) : null}
     </main>
   );
 }
