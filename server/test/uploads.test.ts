@@ -147,6 +147,46 @@ describe("POST /api/uploads", () => {
   });
 });
 
+describe("PATCH /api/uploads/:id", () => {
+  it("recomputes the destination and the duplicates from corrected metadata", async () => {
+    await setup(null, { "dune.epub": { title: "Dune", authors: ["Frank Herbert"] } });
+    // Title and author swapped in the file, as happens.
+    const preview = await stage("x.epub", { title: "Frank Herbert", authors: ["Dune"] });
+    expect(preview.duplicates).toEqual([]);
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/uploads/${preview.id}`,
+      payload: { title: " Dune ", authors: ["Herbert, Frank", ""] },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<UploadPreview>()).toMatchObject({
+      id: preview.id,
+      title: "Dune",
+      authors: ["Herbert, Frank"],
+      targetPath: "Books/H/Frank Herbert/Frank Herbert - Dune.epub",
+      duplicates: [{ reason: "same-book", filePath: "dune.epub" }],
+    });
+
+    // The correction is what ends up in the catalog.
+    const confirm = await app.inject({ method: "POST", url: `/api/uploads/${preview.id}/confirm` });
+    expect(confirm.json<UploadResult>().filePath).toBe("Books/H/Frank Herbert/Frank Herbert - Dune.epub");
+    const book = await app.inject({ method: "GET", url: `/api/books/${confirm.json<UploadResult>().bookId}` });
+    expect(book.json()).toMatchObject({ title: "Dune", authors: ["Herbert, Frank"] });
+  });
+
+  it("refuses an empty title", async () => {
+    await setup(null, {});
+    const preview = await stage("x.epub", { title: "Dune", authors: ["Frank Herbert"] });
+
+    const response = await app.inject({ method: "PATCH", url: `/api/uploads/${preview.id}`, payload: { title: "  ", authors: [] } });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "invalid_metadata" });
+  });
+});
+
 describe("POST /api/uploads/:id/confirm", () => {
   it("files the book, pushes it to the remote and indexes it", async () => {
     await setup("mega:Library", {});

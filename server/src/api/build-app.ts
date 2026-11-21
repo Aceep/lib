@@ -46,6 +46,18 @@ const uploadParamsSchema = {
   properties: { id: { type: "string", format: "uuid" } },
 } as const;
 
+type UploadChanges = { title: string; authors: string[] };
+
+const uploadChangesSchema = {
+  type: "object",
+  required: ["title", "authors"],
+  properties: {
+    title: { type: "string", maxLength: 500 },
+    authors: { type: "array", maxItems: 10, items: { type: "string", maxLength: 200 } },
+  },
+  additionalProperties: false,
+} as const;
+
 // Generous for an EPUB (a few MB usually, tens of MB with many images).
 const MAX_UPLOAD_BYTES = 300 * 1024 * 1024;
 
@@ -144,6 +156,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
       }
       return reply.code(201).send(await uploads.stage(part.filename, part.file));
     });
+
+    app.patch<{ Params: UploadParams; Body: UploadChanges }>(
+      "/api/uploads/:id",
+      { schema: { params: uploadParamsSchema, body: uploadChangesSchema } },
+      async (request) => uploads.update(request.params.id, request.body),
+    );
 
     app.post<{ Params: UploadParams }>("/api/uploads/:id/confirm", { schema: { params: uploadParamsSchema } }, async (request) =>
       uploads.confirm(request.params.id),

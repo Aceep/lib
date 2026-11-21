@@ -63,6 +63,16 @@ export function stageUpload(file: File, signal?: AbortSignal): Promise<UploadPre
   return requestJson("/api/uploads", { method: "POST", body, signal: signal ?? null });
 }
 
+/** Corrects the title/authors read from the file; the server answers with the updated destination and duplicates. */
+export function updateUpload(uploadId: string, changes: { title: string; authors: string[] }, signal?: AbortSignal): Promise<UploadPreview> {
+  return requestJson(`/api/uploads/${uploadId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(changes),
+    signal: signal ?? null,
+  });
+}
+
 export function confirmUpload(uploadId: string): Promise<UploadResult> {
   return requestJson(`/api/uploads/${uploadId}/confirm`, { method: "POST" });
 }

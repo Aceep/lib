@@ -33,7 +33,13 @@ export type UploadResult = {
   filePath: string;
 };
 
-export type UploadErrorCode = "invalid_epub" | "file_too_large" | "unknown_upload" | "target_exists" | "remote_upload_failed";
+export type UploadErrorCode =
+  | "invalid_epub"
+  | "invalid_metadata"
+  | "file_too_large"
+  | "unknown_upload"
+  | "target_exists"
+  | "remote_upload_failed";
 
 export class UploadError extends Error {
   constructor(
@@ -141,6 +147,19 @@ export async function createUploadService(options: UploadServiceOptions) {
     return upload;
   }
 
+  function describe(upload: Pick<PendingUpload, "metadata" | "contentHash">, base: Pick<UploadPreview, "id" | "originalName" | "fileSize">): UploadPreview {
+    const { metadata, contentHash } = upload;
+    const targetPath = proposeName(metadata).path;
+    return {
+      ...base,
+      title: metadata.title,
+      authors: metadata.authors,
+      language: metadata.language,
+      targetPath,
+      duplicates: findDuplicates(contentHash, metadata, targetPath),
+    };
+  }
+
   return {
     /** Stores the file in the staging area and describes what confirming it would do. */
     async stage(originalName: string, source: Readable & { truncated?: boolean }): Promise<UploadPreview> {
@@ -163,17 +182,7 @@ export async function createUploadService(options: UploadServiceOptions) {
         }
         const contentHash = await hashFile(stagedPath);
         const { fileSize } = await fingerprintFile(uploadsDirectory, stagedPath);
-        const targetPath = proposeName(metadata).path;
-        const preview: UploadPreview = {
-          id,
-          originalName,
-          fileSize,
-          title: metadata.title,
-          authors: metadata.authors,
-          language: metadata.language,
-          targetPath,
-          duplicates: findDuplicates(contentHash, metadata, targetPath),
-        };
+        const preview = describe({ metadata, contentHash }, { id, originalName, fileSize });
         pending.set(id, { preview, stagedPath, metadata, contentHash, stagedAt: Date.now() });
         return preview;
       } catch (error) {
@@ -184,6 +193,22 @@ export async function createUploadService(options: UploadServiceOptions) {
 
     get(id: string): UploadPreview | null {
       return pending.get(id)?.preview ?? null;
+    },
+
+    /**
+     * Overrides the title and authors read from the file (they are wrong in a fair share of EPUBs) and recomputes
+     * the destination and the duplicates. The override only reaches the catalog, not the file itself.
+     */
+    update(id: string, changes: { title: string; authors: string[] }): UploadPreview {
+      const upload = getPending(id);
+      const title = changes.title.trim();
+      const authors = changes.authors.map((author) => author.trim()).filter((author) => author !== "");
+      if (title === "") {
+        throw new UploadError(400, "invalid_metadata", "The title cannot be empty");
+      }
+      upload.metadata = { ...upload.metadata, title, authors };
+      upload.preview = describe(upload, upload.preview);
+      return upload.preview;
     },
 
     /** Files the book under its target path, pushes it to the remote and indexes it. */

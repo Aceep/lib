@@ -395,6 +395,28 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.upload-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.upload-form .filter {
+  width: 100%;
+  max-width: 32rem;
+}
+
+.upload-author-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.upload-author-row input {
+  flex: 1;
+}
+
 .upload-facts {
   display: grid;
   grid-template-columns: max-content 1fr;

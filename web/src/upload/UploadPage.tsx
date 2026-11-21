@@ -1,8 +1,9 @@
-import { type ChangeEvent, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { cancelUpload, confirmUpload, stageUpload } from "../api/client.js";
+import { cancelUpload, confirmUpload, stageUpload, updateUpload } from "../api/client.js";
 import type { UploadDuplicate, UploadPreview, UploadResult } from "../api/types.js";
 import { fileSizeLabel } from "../shared/format.js";
+import { useDebouncedValue } from "../shared/use-debounced-value.js";
 
 type PreviewItem = { step: "preview"; preview: UploadPreview; busy: boolean; error: string | null };
 
@@ -20,6 +21,8 @@ const DUPLICATE_LABELS: Record<UploadDuplicate["reason"], string> = {
   "same-book": "même titre et mêmes auteurs",
   "same-path": "un fichier porte déjà ce nom",
 };
+
+const METADATA_DEBOUNCE_MS = 500;
 
 function DuplicateWarning({ duplicates }: { duplicates: UploadDuplicate[] }) {
   if (duplicates.length === 0) {
@@ -41,16 +44,77 @@ function DuplicateWarning({ duplicates }: { duplicates: UploadDuplicate[] }) {
   );
 }
 
-function PreviewCard({ item, onConfirm, onCancel }: { item: PreviewItem; onConfirm: () => void; onCancel: () => void }) {
+type MetadataDraft = { title: string; authors: string[] };
+
+function sameDraft(left: MetadataDraft, right: MetadataDraft): boolean {
+  return left.title === right.title && left.authors.length === right.authors.length && left.authors.every((author, index) => author === right.authors[index]);
+}
+
+/** Title and authors can be corrected; the destination and the duplicates follow after a short pause in typing. */
+function MetadataForm({ preview, disabled, onChange }: { preview: UploadPreview; disabled: boolean; onChange: (draft: MetadataDraft) => void }) {
+  const [draft, setDraft] = useState<MetadataDraft>({ title: preview.title, authors: preview.authors.length > 0 ? preview.authors : [""] });
+  const debouncedDraft = useDebouncedValue(draft, METADATA_DEBOUNCE_MS);
+
+  useEffect(() => {
+    const cleaned = { title: debouncedDraft.title.trim(), authors: debouncedDraft.authors.map((author) => author.trim()).filter(Boolean) };
+    if (cleaned.title !== "" && !sameDraft(cleaned, { title: preview.title, authors: preview.authors })) {
+      onChange(cleaned);
+    }
+    // Only a settled edit should trigger a request, not every change of the server-side preview.
+  }, [debouncedDraft]);
+
+  function setAuthor(index: number, value: string) {
+    setDraft((current) => ({ ...current, authors: current.authors.map((author, position) => (position === index ? value : author)) }));
+  }
+
+  return (
+    <div className="upload-form">
+      <label className="filter">
+        Titre
+        <input type="text" value={draft.title} disabled={disabled} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+      </label>
+      {draft.authors.map((author, index) => (
+        <label className="filter" key={index}>
+          {index === 0 ? "Auteur" : `Auteur ${index + 1}`}
+          <span className="upload-author-row">
+            <input type="text" value={author} disabled={disabled} onChange={(event) => setAuthor(index, event.target.value)} />
+            {draft.authors.length > 1 ? (
+              <button
+                type="button"
+                aria-label={`Retirer l'auteur ${index + 1}`}
+                disabled={disabled}
+                onClick={() => setDraft({ ...draft, authors: draft.authors.filter((_, position) => position !== index) })}
+              >
+                ×
+              </button>
+            ) : null}
+          </span>
+        </label>
+      ))}
+      <button type="button" className="link-button" disabled={disabled} onClick={() => setDraft({ ...draft, authors: [...draft.authors, ""] })}>
+        + un auteur
+      </button>
+    </div>
+  );
+}
+
+function PreviewCard({
+  item,
+  onMetadataChange,
+  onConfirm,
+  onCancel,
+}: {
+  item: PreviewItem;
+  onMetadataChange: (draft: MetadataDraft) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
   const { preview } = item;
   const hasDuplicates = preview.duplicates.length > 0;
   return (
     <>
+      <MetadataForm preview={preview} disabled={item.busy} onChange={onMetadataChange} />
       <dl className="upload-facts">
-        <dt>Titre</dt>
-        <dd>{preview.title}</dd>
-        <dt>Auteur{preview.authors.length > 1 ? "s" : ""}</dt>
-        <dd>{preview.authors.length > 0 ? preview.authors.join(", ") : "inconnu"}</dd>
         <dt>Sera rangé sous</dt>
         <dd>
           <code>{preview.targetPath}</code>
@@ -108,6 +172,10 @@ export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void 
     setItems((current) => current.map((item) => (item.key === key ? { key, fileName: item.fileName, ...next } : item)));
   }
 
+  function patchPreview(key: number, patch: (item: PreviewItem) => PreviewItem) {
+    setItems((current) => current.map((item) => (item.key === key && item.step === "preview" ? { ...item, ...patch(item) } : item)));
+  }
+
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
@@ -120,6 +188,16 @@ export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void 
       } catch (error) {
         replaceItem(key, { step: "error", message: (error as Error).message });
       }
+    }
+  }
+
+  async function handleMetadataChange(key: number, uploadId: string, draft: MetadataDraft) {
+    patchPreview(key, (item) => ({ ...item, busy: true, error: null }));
+    try {
+      const preview = await updateUpload(uploadId, draft);
+      patchPreview(key, (item) => ({ ...item, preview, busy: false }));
+    } catch (error) {
+      patchPreview(key, (item) => ({ ...item, busy: false, error: (error as Error).message }));
     }
   }
 
@@ -151,8 +229,8 @@ export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void 
       </Link>
       <h1>Ajouter des livres</h1>
       <p className="upload-help">
-        Chaque EPUB est renommé d'après ses métadonnées, rangé dans <code>Books/Lettre/Auteur/</code> et envoyé sur MEGA. Rien n'est
-        ajouté avant confirmation.
+        Chaque EPUB est renommé d'après ses métadonnées (corrigeables ci-dessous si elles sont fausses), rangé dans{" "}
+        <code>Books/Lettre/Auteur/</code> et envoyé sur MEGA. Rien n'est ajouté avant confirmation.
       </p>
       <label className="button primary upload-choose">
         <input type="file" accept=".epub,application/epub+zip" multiple onChange={(event) => void handleFiles(event)} />
@@ -163,7 +241,12 @@ export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void 
           <li key={item.key} className={`upload-item is-${item.step}`}>
             <h2 className="upload-file-name">{item.fileName}</h2>
             {item.step === "preview" ? (
-              <PreviewCard item={item} onConfirm={() => void handleConfirm(item.key, item)} onCancel={() => void handleCancel(item.key, item)} />
+              <PreviewCard
+                item={item}
+                onMetadataChange={(draft) => void handleMetadataChange(item.key, item.preview.id, draft)}
+                onConfirm={() => void handleConfirm(item.key, item)}
+                onCancel={() => void handleCancel(item.key, item)}
+              />
             ) : (
               <ItemStatus item={item} />
             )}

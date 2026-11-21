@@ -92,6 +92,9 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
 - Nouvelle colonne `books.content_hash` (migration 3), remplie à l'indexation (rattrapage automatique des anciens livres).
 - La synchro ne tire plus que `*.epub` depuis MEGA (`Library/` contient aussi ~7 Go de BD et PDF).
 - Vérifié de bout en bout sur la vraie bibliothèque (doublon détecté, livre de test poussé sur MEGA puis supprimé).
+- Titre et auteurs sont corrigeables dans l'aperçu (`PATCH /api/uploads/:id`, recalcul du chemin et des doublons après
+  500 ms sans frappe). La correction n'est écrite que dans le catalogue, pas dans l'EPUB : si la base est reconstruite
+  depuis les fichiers, les métadonnées d'origine reviennent. Réécrire l'OPF dans l'archive serait l'étape suivante si ça gêne.
 - Limite : 300 Mo par fichier, un fichier par requête (le front envoie les fichiers un par un).
 
 ## Plus tard
