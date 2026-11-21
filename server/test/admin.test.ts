@@ -6,6 +6,7 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type ActivityEntry, createActivityLog } from "../src/activity/activity-log.js";
 import { createBookAdmin } from "../src/admin/book-admin.js";
+import { createLibraryStatsQueries, type LibraryStats } from "../src/admin/library-stats.js";
 import { authorIdentityKey, createLibraryHealthQueries, type LibraryHealth } from "../src/admin/library-health.js";
 import { buildApp } from "../src/api/build-app.js";
 import { createAuthService } from "../src/auth/auth-service.js";
@@ -13,6 +14,7 @@ import { createCatalogQueries } from "../src/catalog/catalog-queries.js";
 import { type LibraryDatabase, openLibraryDatabase } from "../src/db/database.js";
 import { createLibraryStore } from "../src/db/library-store.js";
 import { indexLibrary } from "../src/library/index-library.js";
+import { type BookRequest, createBookRequests, MAX_OPEN_REQUESTS_PER_MEMBER } from "../src/requests/book-requests.js";
 import { createSyncService } from "../src/sync/sync-service.js";
 import { createUploadService, MAX_STAGED_PER_MEMBER, type UploadPreview, type UploadSubmission } from "../src/uploads/upload-service.js";
 import { opfDocument, writeEpub } from "./helpers/build-epub.js";
@@ -53,6 +55,8 @@ async function startApp(): Promise<void> {
     auth: await createAuthService({ database, now }),
     activity: createActivityLog({ database, now }),
     health: createLibraryHealthQueries(database),
+    requests: createBookRequests({ database, now }),
+    stats: createLibraryStatsQueries({ database, now }),
     books: createBookAdmin({
       store,
       booksDirectory,
@@ -685,5 +689,162 @@ describe("DELETE /api/admin/books/:id", () => {
     expect(response.json()).toMatchObject({ error: "remote_move_failed", message: expect.stringContaining("quota exceeded") });
     expect(existsSync(path.join(booksDirectory, "dune.epub"))).toBe(true);
     expect(bookTitles()).toEqual(["Dune"]);
+  });
+});
+
+describe("book requests", () => {
+  function ask(session: Session, payload: Record<string, unknown>) {
+    return app.inject({ method: "POST", url: "/api/requests", headers: session, payload });
+  }
+
+  async function listRequests(session: Session): Promise<BookRequest[]> {
+    return (await app.inject({ method: "GET", url: "/api/requests", headers: session })).json<BookRequest[]>();
+  }
+
+  function setStatus(session: Session, id: number, status: string) {
+    return app.inject({ method: "PATCH", url: `/api/requests/${id}`, headers: session, payload: { status } });
+  }
+
+  it("can be made by a member and are seen by everyone", async () => {
+    const bob = await sessionOf("bob");
+
+    const created = await ask(bob, { title: " Hyperion ", author: "Dan Simmons", note: "pour les vacances" });
+
+    expect(created.statusCode).toBe(201);
+    expect(await listRequests(await sessionOf("carol"))).toMatchObject([
+      { title: "Hyperion", author: "Dan Simmons", note: "pour les vacances", status: "open", requestedBy: "bob", bookId: null },
+    ]);
+  });
+
+  it("refuse a book that is already asked for, however it is typed", async () => {
+    await ask(await sessionOf("bob"), { title: "Hyperion", author: "Dan Simmons" });
+
+    const again = await ask(await sessionOf("carol"), { title: "hypérion", author: "Simmons, Dan" });
+
+    expect(again.statusCode).toBe(409);
+    expect(again.json()).toMatchObject({ error: "already_requested", message: expect.stringContaining("bob") });
+  });
+
+  it("close by themselves when the book is uploaded", async () => {
+    const bob = await sessionOf("bob");
+    const admin = await adminSession();
+    await ask(bob, { title: "Hyperion", author: "Dan Simmons" });
+    await ask(bob, { title: "Hyperion", author: "Quelqu'un d'autre" });
+
+    const preview = await stage(admin, "Hypérion", ["Simmons, Dan"]);
+    const upload = await app.inject({ method: "POST", url: `/api/uploads/${preview.id}/confirm`, headers: admin });
+
+    const requests = await listRequests(bob);
+    expect(requests.map((request) => [request.author, request.status, request.bookId])).toEqual([
+      ["Quelqu'un d'autre", "open", null],
+      ["Dan Simmons", "fulfilled", upload.json<{ bookId: number }>().bookId],
+    ]);
+    expect((await activityEntries(admin, "action=request_fulfilled"))[0]).toMatchObject({ username: null, details: { title: "Hyperion", automatic: true } });
+  });
+
+  it("close by themselves when the book arrives through a sync, author left blank included", async () => {
+    const bob = await sessionOf("bob");
+    await ask(bob, { title: "Les Robots" });
+
+    await writeBook(path.join(booksDirectory, "robots.epub"), "Les robots", ["Isaac Asimov"]);
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+
+    expect(await listRequests(bob)).toMatchObject([{ title: "Les Robots", status: "fulfilled", bookId: bookId("Les robots") }]);
+  });
+
+  it("can be withdrawn and reopened by their author, but not by another member", async () => {
+    const bob = await sessionOf("bob");
+    const { id } = (await ask(bob, { title: "Hyperion" })).json<BookRequest>();
+
+    expect((await setStatus(await sessionOf("carol"), id, "dropped")).statusCode).toBe(403);
+    expect((await setStatus(bob, id, "fulfilled")).statusCode).toBe(403);
+    expect((await setStatus(bob, id, "dropped")).json()).toMatchObject({ status: "dropped", closedAt: "2026-11-21T10:00:00.000Z" });
+    expect((await setStatus(bob, id, "open")).json()).toMatchObject({ status: "open", closedAt: null });
+  });
+
+  it("can be closed by an admin, whoever made them", async () => {
+    const { id } = (await ask(await sessionOf("bob"), { title: "Hyperion" })).json<BookRequest>();
+    const admin = await adminSession();
+
+    expect((await setStatus(admin, id, "fulfilled")).json()).toMatchObject({ status: "fulfilled" });
+    expect((await setStatus(admin, 999, "dropped")).statusCode).toBe(404);
+  });
+
+  it("are capped per member", async () => {
+    const bob = await sessionOf("bob");
+    for (let index = 0; index < MAX_OPEN_REQUESTS_PER_MEMBER; index++) {
+      await ask(bob, { title: `Livre ${index}` });
+    }
+
+    expect((await ask(bob, { title: "Un de trop" })).json()).toMatchObject({ error: "too_many_requests" });
+    expect((await ask(await adminSession(), { title: "Un de trop" })).statusCode).toBe(201);
+  });
+
+  it("refuse an empty title", async () => {
+    expect((await ask(await sessionOf("bob"), { title: "  " })).statusCode).toBe(400);
+  });
+});
+
+describe("GET /api/admin/stats", () => {
+  it("is closed to members", async () => {
+    expect((await app.inject({ method: "GET", url: "/api/admin/stats", headers: await sessionOf("bob") })).statusCode).toBe(403);
+  });
+
+  it("sums up the library, its downloads and what waits for the admin", async () => {
+    await writeBook(path.join(booksDirectory, "f1.epub"), "Fondation", ["Isaac Asimov"], `<dc:language>fr</dc:language>${CALIBRE_SERIES("Fondation", 1)}`);
+    await writeBook(path.join(booksDirectory, "robots.epub"), "Les Robots", ["Isaac Asimov"], "<dc:language>fr</dc:language>");
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+    database.prepare("UPDATE books SET added_at = '2026-09-03T08:00:00.000Z' WHERE title = 'Dune'").run();
+    database.prepare("UPDATE books SET added_at = '2025-01-01T08:00:00.000Z' WHERE title = 'Les Robots'").run();
+    const bob = await sessionOf("bob");
+    const carol = await sessionOf("carol");
+    const download = (session: Session, title: string) => app.inject({ method: "GET", url: `/api/books/${bookId(title)}/file`, headers: session });
+    await download(bob, "Dune");
+    await download(carol, "Dune");
+    currentTime = new Date("2026-12-30T10:00:00Z");
+    await download(await sessionOf("bob"), "Fondation");
+    await submit(await sessionOf("bob"), "Hyperion", ["Dan Simmons"]);
+    await app.inject({ method: "POST", url: "/api/requests", headers: await sessionOf("carol"), payload: { title: "Ubik" } });
+
+    const response = await app.inject({ method: "GET", url: "/api/admin/stats", headers: await adminSession() });
+
+    expect(response.statusCode).toBe(200);
+    const stats = response.json<LibraryStats>();
+    expect(stats.totals).toMatchObject({ books: 3, authors: 2, series: 1, users: 3, openRequests: 1, pendingUploads: 1, invalidFiles: 0 });
+    expect(stats.totals.totalBytes).toBeGreaterThan(0);
+    expect(stats.downloads).toEqual({
+      total: 3,
+      last30Days: 1,
+      neverDownloaded: 1,
+      topBooks: [
+        { bookId: bookId("Dune"), title: "Dune", count: 2 },
+        { bookId: bookId("Fondation"), title: "Fondation", count: 1 },
+      ],
+      byUser: [
+        { label: "bob", count: 2 },
+        { label: "carol", count: 1 },
+      ],
+    });
+    expect(stats.addedByMonth).toHaveLength(12);
+    expect(stats.addedByMonth[0]).toEqual({ month: "2026-01", count: 0 });
+    expect(stats.addedByMonth.filter((month) => month.count > 0)).toEqual([
+      { month: "2026-09", count: 1 },
+      { month: expect.stringMatching(/^2026-1[12]$/), count: 1 },
+    ]);
+    expect(stats.languages).toEqual([
+      { label: "fr", count: 2 },
+      { label: "en", count: 1 },
+    ]);
+  });
+
+  it("still names a downloaded book that has left the library, without linking to it", async () => {
+    const admin = await adminSession();
+    const id = bookId("Dune");
+    await app.inject({ method: "GET", url: `/api/books/${id}/file`, headers: admin });
+    await app.inject({ method: "DELETE", url: `/api/admin/books/${id}`, headers: admin });
+
+    const stats = (await app.inject({ method: "GET", url: "/api/admin/stats", headers: admin })).json<LibraryStats>();
+
+    expect(stats.downloads.topBooks).toEqual([{ bookId: null, title: "Dune", count: 1 }]);
   });
 });

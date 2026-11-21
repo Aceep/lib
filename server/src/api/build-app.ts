@@ -6,9 +6,11 @@ import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, type FastifyServerOptions } from "fastify";
 import { ACTIVITY_ACTIONS, type ActivityAction, type ActivityLog } from "../activity/activity-log.js";
 import { type BookAdmin, BookAdminError } from "../admin/book-admin.js";
+import type { LibraryStatsQueries } from "../admin/library-stats.js";
 import type { LibraryHealthQueries } from "../admin/library-health.js";
 import { AuthError, type AuthService } from "../auth/auth-service.js";
 import { type MissingBooks, MissingBooksError, type WorkDecision } from "../missing/missing-books.js";
+import { type BookRequest, type BookRequests, RequestError, type RequestStatus } from "../requests/book-requests.js";
 import type { BookSort, CatalogQueries } from "../catalog/catalog-queries.js";
 import type { SyncService } from "../sync/sync-service.js";
 import { actorOf, registerAuth } from "./auth-routes.js";
@@ -24,6 +26,10 @@ export type AppOptions = {
   books?: BookAdmin;
   /** Followed authors and the books of theirs the library lacks; the routes are not registered without it. */
   missing?: MissingBooks;
+  /** Books people would like added; the routes are not registered without it. */
+  requests?: BookRequests;
+  /** Figures of the admin dashboard; the route is not registered without it. */
+  stats?: LibraryStatsQueries;
   /** Admin report on what is wrong with the library; the route is not registered without it. */
   health?: LibraryHealthQueries;
   /** True behind a reverse proxy, so the client address and protocol come from the X-Forwarded-* headers. */
@@ -143,6 +149,33 @@ const workDecisionSchema = {
   additionalProperties: false,
 } as const;
 
+type NewRequestBody = { title: string; author?: string; note?: string; workId?: number };
+
+const newRequestSchema = {
+  type: "object",
+  required: ["title"],
+  properties: {
+    title: { type: "string", maxLength: 500 },
+    author: { type: "string", maxLength: 200 },
+    note: { type: "string", maxLength: 1000 },
+    workId: { type: "integer", minimum: 1 },
+  },
+  additionalProperties: false,
+} as const;
+
+const requestStatusSchema = {
+  type: "object",
+  required: ["status"],
+  properties: { status: { type: "string", enum: ["open", "fulfilled", "dropped"] } },
+  additionalProperties: false,
+} as const;
+
+const REQUEST_STATUS_ACTIONS = { open: "request_reopened", fulfilled: "request_fulfilled", dropped: "request_dropped" } as const;
+
+function requestDetails(request: BookRequest) {
+  return { title: request.title, author: request.author, requestedBy: request.requestedBy };
+}
+
 const rejectUploadSchema = {
   type: "object",
   properties: { reason: { type: "string", maxLength: 500 } },
@@ -215,7 +248,7 @@ function notFound(reply: FastifyReply, message: string) {
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
-  const { catalog, auth, activity, health, books, missing, sync, uploads, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } = options;
+  const { catalog, auth, activity, health, stats, books, missing, requests, sync, uploads, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } = options;
   const app = Fastify({ logger, trustProxy: options.trustProxy ?? false });
 
   if (webDirectory) {
@@ -227,7 +260,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (error instanceof UploadError) {
       return reply.code(error.status).send({ error: error.code, message: error.message });
     }
-    if (error instanceof BookAdminError || error instanceof MissingBooksError) {
+    if (error instanceof BookAdminError || error instanceof MissingBooksError || error instanceof RequestError) {
       return reply.code(error.status).send({ error: error.code, message: error.message });
     }
     if (error instanceof AuthError) {
@@ -354,6 +387,39 @@ export function buildApp(options: AppOptions): FastifyInstance {
     });
   }
 
+  if (requests) {
+    /** Books that arrived since the last look close their requests; the log says so once. */
+    const closeFulfilledRequests = (request: FastifyRequest) => {
+      for (const closed of requests.closeFulfilled()) {
+        activity?.record("request_fulfilled", { ...actorOf(request), user: null }, {
+          ...(closed.bookId !== null ? { bookId: closed.bookId } : {}),
+          details: { ...requestDetails(closed), automatic: true },
+        });
+      }
+    };
+
+    app.get("/api/requests", async (request) => {
+      closeFulfilledRequests(request);
+      return requests.list();
+    });
+
+    app.post<{ Body: NewRequestBody }>("/api/requests", { schema: { body: newRequestSchema } }, async (request, reply) => {
+      const created = requests.create(request.body, uploadActor(request));
+      activity?.record("request_created", actorOf(request), { details: requestDetails(created) });
+      return reply.code(201).send(created);
+    });
+
+    app.patch<{ Params: BookParams; Body: { status: RequestStatus } }>(
+      "/api/requests/:id",
+      { schema: { params: bookParamsSchema, body: requestStatusSchema } },
+      async (request) => {
+        const updated = requests.setStatus(request.params.id, request.body.status, uploadActor(request));
+        activity?.record(REQUEST_STATUS_ACTIONS[request.body.status], actorOf(request), { details: requestDetails(updated) });
+        return updated;
+      },
+    );
+  }
+
   if (missing) {
     app.get("/api/admin/missing", async () => missing.getReport());
 
@@ -386,6 +452,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
         return reply.code(204).send();
       },
     );
+  }
+
+  if (stats) {
+    app.get("/api/admin/stats", async () => stats.getStats());
   }
 
   if (health) {

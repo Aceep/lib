@@ -6,6 +6,9 @@ export function AdminLayout({ pendingUploadCount }: { pendingUploadCount: number
     <main className="page">
       <nav className="admin-tabs" aria-label="Administration">
         <NavLink to="/admin" end className="nav-link">
+          Tableau de bord
+        </NavLink>
+        <NavLink to="/admin/activity" className="nav-link">
           Activité
         </NavLink>
         <NavLink to="/admin/uploads" className="nav-link">

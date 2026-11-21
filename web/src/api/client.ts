@@ -1,6 +1,9 @@
 import type {
   ActivityAction,
   AuthorCandidate,
+  LibraryStats,
+  BookRequest,
+  RequestStatus,
   MissingBooksReport,
   WorkDecision,
   BookCorrection,
@@ -186,6 +189,22 @@ export async function deleteBook(bookId: number): Promise<void> {
 
 export function mergeAuthors(from: string[], into: string): Promise<{ into: string; changedBooks: number }> {
   return requestJson("/api/admin/authors/merge", jsonBody("POST", { from, into }));
+}
+
+export function fetchLibraryStats(signal?: AbortSignal): Promise<LibraryStats> {
+  return requestJson("/api/admin/stats", { signal: signal ?? null });
+}
+
+export function fetchRequests(signal?: AbortSignal): Promise<BookRequest[]> {
+  return requestJson("/api/requests", { signal: signal ?? null });
+}
+
+export function createRequest(request: { title: string; author?: string; note?: string; workId?: number }): Promise<BookRequest> {
+  return requestJson("/api/requests", jsonBody("POST", request));
+}
+
+export function setRequestStatus(requestId: number, status: RequestStatus): Promise<BookRequest> {
+  return requestJson(`/api/requests/${requestId}`, jsonBody("PATCH", { status }));
 }
 
 export function fetchMissingBooks(signal?: AbortSignal): Promise<MissingBooksReport> {

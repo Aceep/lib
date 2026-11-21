@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation, useNavigate } from "react-router";
 import { ActivityPage } from "./admin/ActivityPage.js";
+import { DashboardPage } from "./admin/DashboardPage.js";
 import { AdminLayout } from "./admin/AdminLayout.js";
 import { HealthPage } from "./admin/HealthPage.js";
 import { MissingBooksPage } from "./admin/MissingBooksPage.js";
@@ -15,6 +16,7 @@ import { BookPage } from "./book/BookPage.js";
 import { CatalogPage } from "./catalog/CatalogPage.js";
 import { KyleSays } from "./shared/KyleSays.js";
 import { Logo } from "./shared/Logo.js";
+import { RequestsPage } from "./requests/RequestsPage.js";
 import { useDocumentTitle } from "./shared/use-document-title.js";
 import { SyncIndicator } from "./sync/SyncIndicator.js";
 import { UploadPage } from "./upload/UploadPage.js";
@@ -149,6 +151,9 @@ function SignedInApp({ user, onLoggedOut }: { user: User; onLoggedOut: () => voi
           </NavLink>
           {isAdmin ? (
             <NavLink to="/admin" className="nav-link">
+          <NavLink to="/requests" className="nav-link">
+            Demandes
+          </NavLink>
               Admin
               {pendingUploads.count > 0 ? (
                 <span className="count-badge" aria-label={`${pendingUploads.count} envois à valider`}>
@@ -171,7 +176,9 @@ function SignedInApp({ user, onLoggedOut }: { user: User; onLoggedOut: () => voi
         <Route path="/account" element={<AccountPage user={user} onLoggedOut={onLoggedOut} />} />
         {isAdmin ? (
           <Route path="/admin" element={<AdminLayout pendingUploadCount={pendingUploads.count} />}>
-            <Route index element={<ActivityPage />} />
+        <Route path="/requests" element={<RequestsPage user={user} libraryVersion={libraryVersion} />} />
+            <Route index element={<DashboardPage libraryVersion={libraryVersion} />} />
+            <Route path="activity" element={<ActivityPage />} />
             <Route
               path="uploads"
               element={

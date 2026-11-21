@@ -3,8 +3,10 @@ import { mkdir } from "node:fs/promises";
 import { buildApp } from "./api/build-app.js";
 import { createActivityLog } from "./activity/activity-log.js";
 import { createBookAdmin } from "./admin/book-admin.js";
+import { createLibraryStatsQueries } from "./admin/library-stats.js";
 import { createLibraryHealthQueries } from "./admin/library-health.js";
 import { createAuthService } from "./auth/auth-service.js";
+import { createBookRequests } from "./requests/book-requests.js";
 import { createBibliographySources } from "./missing/bibliography-sources.js";
 import { createMissingBooks } from "./missing/missing-books.js";
 import { createCatalogQueries } from "./catalog/catalog-queries.js";
@@ -61,6 +63,8 @@ const app = buildApp({
   auth,
   activity,
   health: createLibraryHealthQueries(database),
+  stats: createLibraryStatsQueries({ database }),
+  requests: createBookRequests({ database }),
   missing: createMissingBooks({ database, sources: createBibliographySources() }),
   books: createBookAdmin({
     store,

@@ -17,6 +17,10 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   book_edited: "Fiche corrigée",
   book_deleted: "Livre supprimé",
   authors_merged: "Auteurs fusionnés",
+  request_created: "Demande",
+  request_fulfilled: "Demande satisfaite",
+  request_dropped: "Demande abandonnée",
+  request_reopened: "Demande rouverte",
   login: "Connexion",
   login_failed: "Connexion échouée",
   logout: "Déconnexion",
@@ -65,6 +69,19 @@ function ActivitySubject({ entry }: { entry: ActivityEntry }): ReactNode {
       return `${text(details.title)} → ${text(details.trashedTo)}`;
     case "authors_merged":
       return `${text(details.from)} → ${text(details.into)} (${text(details.changedBooks)} livres)`;
+    case "request_created":
+    case "request_dropped":
+    case "request_reopened":
+      return `${text(details.title)}${details.author ? ` — ${text(details.author)}` : ""}`;
+    case "request_fulfilled": {
+      const title = text(details.title);
+      return (
+        <>
+          {entry.bookId !== null ? <Link to={`/books/${entry.bookId}`}>{title}</Link> : title} (demandé par {text(details.requestedBy)}
+          {details.automatic ? ", fermée à l'arrivée du livre" : ""})
+        </>
+      );
+    }
     case "upload_submitted":
     case "upload_cancelled":
       return text(details.title);

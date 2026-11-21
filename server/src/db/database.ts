@@ -178,6 +178,24 @@ const MIGRATIONS: string[] = [
     UNIQUE (followed_author_id, source, external_id)
   );
   `,
+  `
+  -- Books someone would like to see in the library.
+  CREATE TABLE book_requests (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    username TEXT NOT NULL,
+    title TEXT NOT NULL,
+    author TEXT,
+    note TEXT,
+    status TEXT NOT NULL CHECK (status IN ('open', 'fulfilled', 'dropped')),
+    created_at TEXT NOT NULL,
+    closed_at TEXT,
+    -- Not foreign keys: the request must outlive the book being re-indexed and the author being unfollowed.
+    book_id INTEGER,
+    work_id INTEGER
+  );
+  CREATE INDEX book_requests_status ON book_requests (status);
+  `,
 ];
 
 function migrate(database: LibraryDatabase): void {

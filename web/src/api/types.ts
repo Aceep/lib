@@ -130,7 +130,11 @@ export type ActivityAction =
   | "sync_started"
   | "book_edited"
   | "book_deleted"
-  | "authors_merged";
+  | "authors_merged"
+  | "request_created"
+  | "request_fulfilled"
+  | "request_dropped"
+  | "request_reopened";
 
 export type ActivityEntry = {
   id: number;
@@ -183,6 +187,48 @@ export type FollowedAuthor = {
 export type SeriesGap = { series: string; authors: string[]; owned: number[]; missing: number[] };
 
 export type MissingBooksReport = { authors: FollowedAuthor[]; seriesGaps: SeriesGap[] };
+
+export type RequestStatus = "open" | "fulfilled" | "dropped";
+
+export type BookRequest = {
+  id: number;
+  title: string;
+  author: string | null;
+  note: string | null;
+  status: RequestStatus;
+  requestedBy: string;
+  createdAt: string;
+  closedAt: string | null;
+  bookId: number | null;
+  /** The entry of the "missing books" report it was made from, if any. */
+  workId: number | null;
+};
+
+export type RankedCount = { label: string; count: number };
+
+export type LibraryStats = {
+  totals: {
+    books: number;
+    authors: number;
+    series: number;
+    totalBytes: number;
+    users: number;
+    openRequests: number;
+    pendingUploads: number;
+    invalidFiles: number;
+  };
+  downloads: {
+    total: number;
+    last30Days: number;
+    neverDownloaded: number;
+    /** bookId is null once the book has left the library. */
+    topBooks: { bookId: number | null; title: string; count: number }[];
+    byUser: RankedCount[];
+  };
+  /** The last twelve months ("2026-11"), oldest first. */
+  addedByMonth: { month: string; count: number }[];
+  languages: RankedCount[];
+};
 
 export type MissingField = "cover" | "language" | "description";
 

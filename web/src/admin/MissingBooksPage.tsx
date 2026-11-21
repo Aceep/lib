@@ -1,9 +1,11 @@
 import { type FormEvent, useState } from "react";
 import { Link } from "react-router";
 import {
+  createRequest,
   decideWork,
   fetchFacets,
   fetchMissingBooks,
+  fetchRequests,
   followAuthor,
   refreshFollowedAuthor,
   searchAuthorCandidates,
@@ -137,7 +139,18 @@ function FollowAuthorForm({ followedNames, onFollowed }: { followedNames: string
   );
 }
 
-function WorkLine({ work, onDecide }: { work: AuthorWork; onDecide: (decision: WorkDecision | null) => void }) {
+function WorkLine({
+  work,
+  isRequested,
+  onDecide,
+  onRequest,
+}: {
+  work: AuthorWork;
+  /** An open request already asks for this work. */
+  isRequested: boolean;
+  onDecide: (decision: WorkDecision | null) => void;
+  onRequest: () => void;
+}) {
   return (
     <li>
       <span className="record-main">
@@ -156,6 +169,13 @@ function WorkLine({ work, onDecide }: { work: AuthorWork; onDecide: (decision: W
       <span className="merge-actions">
         {work.state === "missing" ? (
           <>
+            {isRequested ? (
+              <span className="status-tag">Demandé</span>
+            ) : (
+              <button type="button" onClick={onRequest}>
+                À trouver
+              </button>
+            )}
             <button type="button" onClick={() => onDecide("owned")}>
               Je l'ai déjà
             </button>
@@ -189,7 +209,7 @@ function groupBySeries(works: AuthorWork[]): [string, AuthorWork[]][] {
   return [...groups];
 }
 
-function AuthorCard({ author, onChanged }: { author: FollowedAuthor; onChanged: () => void }) {
+function AuthorCard({ author, requestedWorkIds, onChanged }: { author: FollowedAuthor; requestedWorkIds: Set<number>; onChanged: () => void }) {
   const [isBusy, setIsBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const missing = author.works.filter((work) => work.state === "missing");
@@ -217,6 +237,12 @@ function AuthorCard({ author, onChanged }: { author: FollowedAuthor; onChanged: 
   }
 
   const decide = (work: AuthorWork) => (decision: WorkDecision | null) => void run(() => decideWork(work.id, decision));
+  // The first French volume is the most useful title to look for; the author is named as in the library.
+  const request = (work: AuthorWork) => () =>
+    void run(() => createRequest({ title: work.title.split(/\s*\/\s*/)[0] ?? work.title, author: author.name, workId: work.id }));
+  const workLine = (work: AuthorWork) => (
+    <WorkLine key={work.id} work={work} isRequested={requestedWorkIds.has(work.id)} onDecide={decide(work)} onRequest={request(work)} />
+  );
 
   return (
     <li className="upload-item">
@@ -240,11 +266,7 @@ function AuthorCard({ author, onChanged }: { author: FollowedAuthor; onChanged: 
       {groupBySeries(missing).map(([series, works]) => (
         <div key={series} className="work-group">
           <h4>{series}</h4>
-          <ul className="record-list">
-            {works.map((work) => (
-              <WorkLine key={work.id} work={work} onDecide={decide(work)} />
-            ))}
-          </ul>
+          <ul className="record-list">{works.map(workLine)}</ul>
         </div>
       ))}
       {[
@@ -256,11 +278,7 @@ function AuthorCard({ author, onChanged }: { author: FollowedAuthor; onChanged: 
             <summary>
               {works.length} {label}
             </summary>
-            <ul className="record-list">
-              {works.map((work) => (
-                <WorkLine key={work.id} work={work} onDecide={decide(work)} />
-              ))}
-            </ul>
+            <ul className="record-list">{works.map(workLine)}</ul>
           </details>
         ) : null,
       )}
@@ -279,6 +297,12 @@ function AuthorCard({ author, onChanged }: { author: FollowedAuthor; onChanged: 
 export function MissingBooksPage({ libraryVersion }: { libraryVersion: number }) {
   useDocumentTitle("Livres manquants");
   const report = useAsync((signal) => fetchMissingBooks(signal), [libraryVersion]);
+  const requests = useAsync((signal) => fetchRequests(signal), [libraryVersion]);
+  const requestedWorkIds = new Set((requests.data ?? []).flatMap((request) => (request.status === "open" && request.workId !== null ? [request.workId] : [])));
+  const reload = () => {
+    report.reload();
+    requests.reload();
+  };
 
   return (
     <>
@@ -302,7 +326,7 @@ export function MissingBooksPage({ libraryVersion }: { libraryVersion: number })
             </h2>
             <ul className="upload-list">
               {report.data.authors.map((author) => (
-                <AuthorCard key={author.id} author={author} onChanged={report.reload} />
+                <AuthorCard key={author.id} author={author} requestedWorkIds={requestedWorkIds} onChanged={reload} />
               ))}
             </ul>
             <FollowAuthorForm followedNames={report.data.authors.map((author) => author.name)} onFollowed={report.reload} />

@@ -11,6 +11,8 @@
   --color-error: #b3261e;
   --color-warning-bg: #fff4e0;
   --color-ok: #2f8a4b;
+  /* The one hue of the dashboard charts; checked against each surface with the dataviz palette validator. */
+  --color-chart: #b0531f;
   --color-placeholder: #e9e3d6;
   --color-skeleton: #ebe7df;
   --color-focus: #b5713f;
@@ -40,6 +42,7 @@
     --color-error: #f2b8b5;
     --color-warning-bg: #3a2f1e;
     --color-ok: #7fcf98;
+    --color-chart: #c2703d;
     --color-placeholder: #2e2b27;
     --color-skeleton: #2c2a26;
     --color-focus: #e0a07a;
@@ -1233,6 +1236,184 @@ button:disabled {
   margin-top: 1.25rem;
   color: var(--color-muted);
   font-size: 0.9rem;
+}
+
+/* Dashboard */
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+a.stat-tile:hover {
+  border-color: var(--color-accent);
+}
+
+.stat-label {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.stat-value {
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.stat-detail {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.chart-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.chart-card h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.chart-card > p {
+  margin: 0.15rem 0 0;
+}
+
+.chart-card details {
+  margin-top: 0.75rem;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.chart-card details summary {
+  cursor: pointer;
+}
+
+.column-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 11rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  border-bottom: 1px solid var(--color-border);
+  list-style: none;
+}
+
+.column-chart li {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+}
+
+.column-bar {
+  width: min(24px, 100%);
+  min-height: 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--color-chart);
+}
+
+/* The whole slot is the hover target, not just the thin bar. */
+.column-value {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  padding: 0 0.3rem;
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  visibility: hidden;
+}
+
+.column-chart li:hover .column-value,
+.column-chart li:focus-visible .column-value,
+.column-chart li.is-peak .column-value {
+  visibility: visible;
+}
+
+.column-chart:hover li.is-peak:not(:hover) .column-value {
+  visibility: hidden;
+}
+
+.column-axis {
+  display: flex;
+  gap: 2px;
+  margin-top: 0.3rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.column-axis span {
+  flex: 1;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ranked-bars {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(4rem, 40%) max-content;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.ranked-bars li {
+  display: contents;
+}
+
+.ranked-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranked-track {
+  height: 10px;
+}
+
+.ranked-bar {
+  height: 100%;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  background: var(--color-chart);
+}
+
+.ranked-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 @media (max-width: 40rem) {

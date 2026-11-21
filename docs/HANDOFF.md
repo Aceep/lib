@@ -189,7 +189,21 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
   liste à la fois le volume original et chaque tome du découpage français (doublons à ignorer à la main).
 - **Trous dans les séries** : calculés localement sur `books.series` / `series_index` (séries de plus de 60 tomes
   ignorées). Sur la vraie base, beaucoup de faux trous viennent de numéros de série faux dans les EPUB.
-- Suite du plan : demandes de livres, puis tableau de bord.
+
+## Panneau admin — demandes de livres et tableau de bord (fait le 2026-11-21)
+
+- **Demandes** (migration 9, `server/src/requests/book-requests.ts`, page `/requests` ouverte à tous) : titre, auteur
+  et précision facultatifs ; tout le monde voit toutes les demandes ; refus d'un doublon (même titre et auteur
+  normalisés) ; 30 demandes ouvertes au plus par membre. Une demande passe à « ajouté » toute seule dès qu'un livre de
+  même titre (et même auteur si précisé) est dans la bibliothèque, qu'il arrive par upload ou par synchro
+  (`closeFulfilled`, appelé à chaque lecture de la liste). Bouton « À trouver » sur chaque œuvre manquante.
+- **Tableau de bord** (`server/src/admin/library-stats.ts`, `GET /api/admin/stats`, page d'accueil de `/admin`) :
+  tuiles (livres, auteurs, téléchargements sur 30 jours, jamais téléchargés, envois à valider, demandes, fichiers
+  illisibles, comptes), ajouts par mois sur 12 mois, livres les plus téléchargés, téléchargements par compte, langues.
+  Les téléchargements viennent du journal d'activité, donc limités à sa durée de conservation. L'activité est passée
+  à `/admin/activity`. Couleur des graphiques : `--color-chart`, validée avec le script du skill dataviz.
+- Le plan du panneau admin est terminé. Reste hors plan : nom de domaine et HTTPS réel, vérification visuelle de
+  toutes les pages, essai de la suppression contre le vrai MEGA.
 
 ## Plus tard
 
