@@ -47,6 +47,29 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
      Réversible : `rclone move mega:_doublons mega:Library`. Les 19 groupes à écart de taille > 10 % ont été tranchés
      « on garde le plus gros » ; si une version déplacée était la bonne, elle est dans `_doublons` au même chemin.
      Reste à décider quand vider `_doublons` (à la main, dans l'interface MEGA).
+## Rangement de `mega:Library` (2026-11-21)
+
+- Format choisi (compatible avec une recherche par mots) : `Books/<Lettre du nom>/<Prénom Nom>/<Prénom Nom - Titre>.epub`,
+  d'après les métadonnées EPUB. Règles dans `server/src/library/file-naming.ts` (testé).
+- `npm run plan-layout -w server -- <books> <plan.json> <rapport.md> scripts/layout-overrides.json` produit le plan
+  (`docs/rangement-mega.md`) ; `scripts/layout-overrides.json` fixe à la main les cibles des EPUB aux métadonnées fausses
+  (titre/auteur inversés, auteur `Unknown`…). `node scripts/apply-layout-plan.mjs <plan.json> mega:Library books --apply`
+  applique le plan (un `rclone moveto` côté serveur par fichier + même renommage en local, journal
+  `data/apply-layout-plan.log` avec chaque ancien → nouveau).
+- **Appliqué le 2026-11-21** : 586 renommages côté serveur (journal `data/apply-layout-plan.log`, ancien → nouveau),
+  plus 11 dossiers MEGA renommés de NFD en NFC et 5 doublons de plus (collisions de noms) déplacés vers `_doublons`
+  (335 fichiers là-bas). État final : `mega:Library` = 580 EPUB dans `Books/<Lettre>/<Auteur>/`, 0 à la racine,
+  copie locale identique (`rclone sync --dry-run` ne transfère rien), `plan-layout` et `duplicates` ne proposent plus rien.
+  Les exceptions de `scripts/layout-overrides.json` sont désormais clés par leur chemin final (le plan reste idempotent).
+- Pièges rencontrés, à garder en tête : `/mnt/c` (NTFS) est insensible à la casse, donc un `mkdir` sur « R. F. Kuang »
+  tombe dans « R. f. Kuang » ; MEGA accepte deux dossiers dont le nom ne diffère que par la forme Unicode (NFC/NFD) et
+  `rclone moveto` réutilise un dossier NFD existant. `proposeName` sort du NFC pour éviter d'en recréer.
+- Restes à trier à la main : `Books/_À identifier/` (2 EPUB sans métadonnées), les ~600 fichiers `.jpg`/`.opf`
+  (fiches Calibre) toujours sous leurs anciens noms dans `Books/`, inutiles pour l'appli.
+- Rappel : la barre de recherche de l'appli lit titre/auteurs/description des métadonnées, pas les noms de fichiers.
+- Bug repéré à corriger : le lecteur OPF ne décode pas les entités HTML (`Tr&#xE9;vidic`), ce qui pollue la recherche.
+  `decodeEntities` dans `file-naming.ts` est un palliatif local au nommage ; la vraie correction est dans `server/src/epub/opf.ts`.
+
 - `rclone sync mega:Library books/` signale `Graphics/Invincible intégrale` et `Graphics/zzImpénétrable` en
   « Duplicate directory found in source » (deux dossiers de même nom sur MEGA) : sans effet sur les EPUB, à nettoyer
   dans l'interface MEGA si ça gêne.

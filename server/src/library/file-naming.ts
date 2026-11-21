@@ -123,6 +123,8 @@ export function parseAuthor(raw: string): ParsedAuthor & { doubts: NamingDoubt[]
   // "Jean-baptiste" -> "Jean-Baptiste": hyphen-joined parts of a name are capitalized, only in words already capitalized
   // so "de", "van" are left alone.
   words = words.map((word) => (/^\p{Lu}/u.test(word) ? word.replace(/-(\p{Ll})/gu, (_, letter: string) => `-${letter.toUpperCase()}`) : word));
+  // Initials are upper case: "N.k." -> "N.K.", "f." -> "F.".
+  words = words.map((word) => (/^(\p{L}\.)+$/u.test(word) ? word.toUpperCase() : word));
   const display = words.join(" ");
 
   if (words.length === 1) {
@@ -194,5 +196,6 @@ export function proposeName(metadata: { title: string; authors: string[] }): Pro
     doubts.push("title-truncated");
     fileName = fileName.slice(0, MAX_FILE_NAME_LENGTH - ".epub".length - 1).trimEnd() + "…";
   }
-  return { path: `${folder}/${fileName}.epub`, doubts: [...new Set(doubts)] };
+  // Metadata come in either Unicode form; one form on disk keeps rclone from seeing "André" and "André" as two names.
+  return { path: `${folder}/${fileName}.epub`.normalize("NFC"), doubts: [...new Set(doubts)] };
 }

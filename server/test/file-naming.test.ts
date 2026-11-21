@@ -15,6 +15,8 @@ describe("parseAuthor", () => {
     ["  Évelyne   Brisou-Pellen ", "Évelyne Brisou-Pellen", "B"],
     ["STEFAN ZWEIG", "Stefan Zweig", "Z"],
     ["Jean-baptiste Andrea", "Jean-Baptiste Andrea", "A"],
+    ["N.k. Jemisin", "N.K. Jemisin", "J"],
+    ["R. f. Kuang", "R. F. Kuang", "K"],
     ["National Intelligence Council (USA)", "National Intelligence Council (USA)", "C"],
   ])("%s -> %s (%s)", (raw, display, letter) => {
     expect(parseAuthor(raw)).toMatchObject({ display, letter, doubts: [] });
