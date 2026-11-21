@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { buildApp } from "./api/build-app.js";
 import { createCatalogQueries } from "./catalog/catalog-queries.js";
@@ -31,6 +32,8 @@ const app = buildApp({
   nextScheduledSyncAt: () => schedule?.nextRunAt() ?? null,
   booksDirectory: config.booksDirectory,
   coversDirectory: config.coversDirectory,
+  // In dev the front end is served by Vite, and web/dist may not exist yet.
+  webDirectory: existsSync(config.webDirectory) ? config.webDirectory : null,
   logger: true,
 });
 logError = (message, error) => app.log.error({ err: error }, message);

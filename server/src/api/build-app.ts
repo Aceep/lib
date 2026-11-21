@@ -1,6 +1,7 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
+import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyServerOptions } from "fastify";
 import type { BookSort, CatalogQueries } from "../catalog/catalog-queries.js";
 import type { SyncService } from "../sync/sync-service.js";
@@ -12,6 +13,8 @@ export type AppOptions = {
   nextScheduledSyncAt: () => Date | null;
   booksDirectory: string;
   coversDirectory: string;
+  /** Built SPA (web/dist). Null in tests and in dev, where Vite serves the front end. */
+  webDirectory?: string | null;
   logger?: FastifyServerOptions["logger"];
 };
 
@@ -82,8 +85,21 @@ function notFound(reply: FastifyReply, message: string) {
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
-  const { catalog, sync, nextScheduledSyncAt, booksDirectory, coversDirectory, logger = false } = options;
+  const { catalog, sync, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } = options;
   const app = Fastify({ logger });
+
+  if (webDirectory) {
+    void app.register(fastifyStatic, { root: webDirectory, wildcard: false });
+  }
+
+  app.setNotFoundHandler(async (request, reply) => {
+    const isPageNavigation = request.method === "GET" && !request.url.startsWith("/api/");
+    if (webDirectory && isPageNavigation) {
+      // Client-side routes such as /books/42 only exist in the SPA: hand it index.html and let it route.
+      return reply.header("cache-control", "no-cache").sendFile("index.html");
+    }
+    return notFound(reply, "Route not found");
+  });
 
   app.get("/api/sync", async () => ({
     ...sync.getStatus(),
