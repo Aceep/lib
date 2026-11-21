@@ -624,6 +624,35 @@ describe("series", () => {
     const book = await app.inject({ method: "GET", url: `/api/books/${id}`, headers: await sessionOf("bob") });
     expect(book.json()).toMatchObject({ title: "Fondation (corrigé)", series: "Fondation", seriesIndex: 1 });
   });
+
+  it("keep the series an admin chose before the file's own was ever read", async () => {
+    const admin = await adminSession();
+    const id = bookId("Fondation");
+    database.prepare("UPDATE books SET series = NULL, series_index = NULL, series_checked = 0").run();
+    const correction = { title: "Fondation", authors: ["Isaac Asimov"], series: "Cycle de Fondation", seriesIndex: 3 };
+    await app.inject({ method: "PATCH", url: `/api/admin/books/${id}`, headers: admin, payload: correction });
+
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+
+    expect((await app.inject({ method: "GET", url: `/api/books/${id}`, headers: admin })).json()).toMatchObject({ series: "Cycle de Fondation", seriesIndex: 3 });
+  });
+
+  it("take the file's series after a correction that only renamed the book, and keep it when indexed again", async () => {
+    const admin = await adminSession();
+    const id = bookId("Fondation");
+    database.prepare("UPDATE books SET series = NULL, series_index = NULL, series_checked = 0").run();
+    const correction = { title: "Fondation (renommé)", authors: ["Isaac Asimov"], series: null, seriesIndex: null };
+    await app.inject({ method: "PATCH", url: `/api/admin/books/${id}`, headers: admin, payload: correction });
+
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+    await reindexEverything();
+
+    expect((await app.inject({ method: "GET", url: `/api/books/${id}`, headers: admin })).json()).toMatchObject({
+      title: "Fondation (renommé)",
+      series: "Fondation",
+      seriesIndex: 1,
+    });
+  });
 });
 
 describe("PATCH /api/admin/books/:id", () => {

@@ -205,6 +205,9 @@ export function createLibraryStore(database: LibraryDatabase) {
        ON CONFLICT (content_hash) DO UPDATE SET language = excluded.language, updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
     ),
     setLanguage: database.prepare<[string, string, number]>("UPDATE books SET language = ?, updated_at = ? WHERE id = ?"),
+    setOverrideSeries: database.prepare<[string | null, number | null, string]>(
+      "UPDATE book_overrides SET series = ?, series_index = ? WHERE content_hash = ? AND has_series = 1",
+    ),
     setSeries: database.prepare<[string | null, number | null, number]>(
       "UPDATE books SET series = ?, series_index = ?, series_checked = 1 WHERE id = ?",
     ),
@@ -290,17 +293,27 @@ export function createLibraryStore(database: LibraryDatabase) {
     }),
 
     /** Fills in the series of a book indexed before series were read, leaving everything else as it is. */
-    backfillSeries: database.transaction((bookId: number, series: string | null, seriesIndex: number | null): void => {
-      statements.setSeries.run(series, seriesIndex, bookId);
+    backfillSeries: database.transaction((bookId: number, fileSeries: string | null, fileSeriesIndex: number | null): void => {
       const row = statements.getStoredBook.get(bookId);
-      if (row) {
-        replaceAuthorsAndSearchEntry(bookId, {
-          title: row.title,
-          authors: statements.listAuthorNames.all(bookId).map((author) => author.name),
-          description: statements.getSearchDescription.get(bookId)?.description ?? null,
-          series,
-        });
+      if (!row) {
+        return;
       }
+      // A series an admin gave the book since wins over the file. A correction that only touched the title or
+      // the authors recorded "no series" because nothing was known then: it takes the file's series instead.
+      const override = row.content_hash ? statements.getOverride.get(row.content_hash) : undefined;
+      const corrected = override?.has_series === 1 && override.series !== null;
+      const series = corrected ? override.series : fileSeries;
+      const seriesIndex = corrected ? override.series_index : fileSeriesIndex;
+      if (override && !corrected && row.content_hash) {
+        statements.setOverrideSeries.run(series, seriesIndex, row.content_hash);
+      }
+      statements.setSeries.run(series, seriesIndex, bookId);
+      replaceAuthorsAndSearchEntry(bookId, {
+        title: row.title,
+        authors: statements.listAuthorNames.all(bookId).map((author) => author.name),
+        description: statements.getSearchDescription.get(bookId)?.description ?? null,
+        series,
+      });
     }),
 
     setContentHash(bookId: number, contentHash: string): void {
