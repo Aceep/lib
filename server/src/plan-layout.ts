@@ -32,6 +32,8 @@ for (const file of files.filter((f) => f.title !== null).sort((a, b) => a.filePa
 // Two files landing on the same name are almost always the same book with slightly different metadata.
 const collisions = [...byTarget.values()].filter((group) => group.length > 1);
 for (const group of collisions) {
+  // A file already sitting at the target keeps its name; the newcomers get the suffix.
+  group.sort((left, right) => Number(right.from === right.to) - Number(left.from === left.to));
   group.forEach((entry, index) => {
     entry.doubts.push("name-collision");
     if (index > 0) {

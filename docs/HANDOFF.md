@@ -218,6 +218,23 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
 - Vérifié dans Chrome headless sur une copie de la base, via un proxy de test qui ajoute le cookie de session.
 - Reste : envoi vers Kindle (attend un compte SMTP), couvertures manquantes (10 livres).
 
+## Genres, PWA, sauvegardes, réparations (2026-11-22)
+
+- **Genres** : `dc:subject` → étagères fixes (`server/src/library/genres.ts`, synonymes + tests). Tables `genres` /
+  `book_genres`, colonne `books.genres_checked` pour le rattrapage à l'indexation (comme `series_checked`). Filtre
+  `genre` sur `/api/books`, facette `genres`, puces sur la fiche, étagères par genre sur l'accueil (≥ 6 livres, 4 max).
+  État : 323 livres sur 712 ont un genre ; les autres n'ont pas de sujets exploitables dans l'EPUB.
+- **PWA** : `web/public/manifest.webmanifest` + icônes 192/512 (rendues avec Chrome headless depuis `data/shots/icon.html`).
+- **Sauvegarde** : `server/src/backup/` — copie SQLite quotidienne (`BACKUP_CRON`, `BACKUP_KEEP`), miroir rclone vers
+  `<remote>:_sauvegardes`, `npm run backup -w server` à la demande. Restauration décrite dans le README.
+- **Réparations de fichiers** (scripts jetables, pas dans le dépôt) : `LE_BAL` de Némirovsky avait une entrée zip
+  `OPS/../cover.jpg` refusée par yauzl → réécrit sans cette entrée ; les deux EPUB de `_À identifier` ont reçu
+  titre/auteur dans leur OPF (Valentin Gendrot, *Flic* ; Jean-Pierre Levain, *Les femmes ne plaisantent pas avec
+  l'amour*) puis ont été rangés. **Incident** : le rangement a écrasé un autre *Le Bal* déjà présent au chemin cible
+  (71 050 o, hash `903ad96b…`), parce que `apply-layout-plan` ne vérifiait pas l'existence de la cible — corrigé
+  (refus d'écraser, en local comme sur MEGA ; le plan garde le nom du fichier déjà en place). Le fichier écrasé est
+  probablement dans la corbeille MEGA ; il reste un *Le Bal* (édition réparée, avec couverture).
+
 ## Plus tard
 
 - Phase 2 : demandes de livres (formulaire, liste, statut) — intégrée au plan du panneau admin ci-dessus.

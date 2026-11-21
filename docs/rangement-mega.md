@@ -1,18 +1,16 @@
 # Plan de rangement de `mega:Library` (rien n'a été modifié)
 
-580 EPUB analysés : 0 à renommer/déplacer, 579 déjà au bon endroit, 1 illisibles laissés tels quels.
+713 EPUB analysés : 4 à renommer/déplacer, 709 déjà au bon endroit, 0 illisibles laissés tels quels.
 
 Format : `Books/<Lettre du nom>/<Prénom Nom>/<Prénom Nom - Titre>.epub`, d'après les métadonnées EPUB.
 
-## Collisions — 0 groupes de fichiers qui tombent sur le même nom (doublons probables)
+## Collisions — 1 groupes de fichiers qui tombent sur le même nom (doublons probables)
 
+- `Books/I/Nemirovsky Irene/IRENE_NEMIROVSKY__LE_BAL.epub` et `Books/N/Irène Némirovsky/Irène Némirovsky - Le Bal.epub`
+  → `Books/N/Irène Némirovsky/Irène Némirovsky - Le Bal.epub`
 
-## Exceptions manuelles — 20 fichiers aux métadonnées fausses, cibles fixées à la main
+## Exceptions manuelles — 18 fichiers aux métadonnées fausses, cibles fixées à la main
 
-- `Books/_À identifier/0750a83791d14c71d790dbd54c108dfb.epub`
-  → `Books/_À identifier/0750a83791d14c71d790dbd54c108dfb.epub`
-- `Books/_À identifier/6e0876f36bd8236c37638c49abe94c96.epub`
-  → `Books/_À identifier/6e0876f36bd8236c37638c49abe94c96.epub`
 - `Books/A/Elliot Ackerman/Elliot Ackerman, James Stavridis - 2034.epub`
   → `Books/A/Elliot Ackerman/Elliot Ackerman, James Stavridis - 2034.epub`
 - `Books/A/Sonia Alain/Sonia Alain - Les contes interdits - Le petit chaperon rouge.epub`
@@ -50,12 +48,16 @@ Format : `Books/<Lettre du nom>/<Prénom Nom>/<Prénom Nom - Titre>.epub`, d'apr
 - `Books/Z/Stefan Zweig/Stefan Zweig - Le Monde d'hier.epub`
   → `Books/Z/Stefan Zweig/Stefan Zweig - Le Monde d'hier.epub`
 
-## À relire — 0 fichiers où la normalisation a dû deviner
+## À relire — 2 fichiers où la normalisation a dû deviner
 
+- [name-collision] `Books/I/Nemirovsky Irene/IRENE_NEMIROVSKY__LE_BAL.epub`
+  → `Books/N/Irène Némirovsky/Irène Némirovsky - Le Bal.epub`
+- [name-collision] `Books/N/Irène Némirovsky/Irène Némirovsky - Le Bal.epub`
+  → `Books/N/Irène Némirovsky/Irène Némirovsky - Le Bal (2).epub`
 
-## Les -20 autres
+## Les -16 autres
 
-
-## Illisibles (non déplacés)
-
-- `Books/I/Nemirovsky Irene/IRENE_NEMIROVSKY__LE_BAL.epub` : Invalid EPUB "/mnt/c/Users/Nam/lib/books/Books/I/Nemirovsky Irene/IRENE_NEMIROVSKY__LE_BAL.epub": not a readable zip (invalid relative path: OPS/../cover.jpg)
+- `Books/_À identifier/0750a83791d14c71d790dbd54c108dfb.epub`
+  → `Books/G/Valentin Gendrot/Valentin Gendrot - Flic.epub`
+- `Books/_À identifier/6e0876f36bd8236c37638c49abe94c96.epub`
+  → `Books/L/Jean-Pierre Levain/Jean-Pierre Levain - Les femmes ne plaisantent pas avec l'amour.epub`

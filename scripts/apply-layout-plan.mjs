@@ -34,11 +34,21 @@ for (const { from, to } of renames) {
     failed++;
     continue;
   }
+  // Never overwrite: a target that already exists (locally or on the remote) is someone else's book.
+  if (existsSync(localTo)) {
+    console.error(`SKIPPED ${from}: ${to} already exists locally`);
+    failed++;
+    continue;
+  }
   if (!apply) {
     console.log(`${from}\n  -> ${to}`);
     continue;
   }
   try {
+    const remoteListing = execFileSync("rclone", ["lsf", `${remote}/${path.posix.dirname(to)}`], { stdio: ["ignore", "pipe", "ignore"] }).toString();
+    if (remoteListing.split("\n").includes(path.posix.basename(to))) {
+      throw new Error(`${to} already exists on ${remote}`);
+    }
     execFileSync("rclone", ["moveto", `${remote}/${from}`, `${remote}/${to}`], { stdio: ["ignore", "ignore", "pipe"] });
     mkdirSync(path.dirname(localTo), { recursive: true });
     renameSync(localFrom, localTo);
