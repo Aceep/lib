@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type ActivityEntry, createActivityLog } from "../src/activity/activity-log.js";
 import { createBookAdmin } from "../src/admin/book-admin.js";
 import { createLibraryStatsQueries, type LibraryStats } from "../src/admin/library-stats.js";
-import { authorIdentityKey, createLibraryHealthQueries, type LibraryHealth } from "../src/admin/library-health.js";
+import { authorFromFilePath, authorIdentityKey, createLibraryHealthQueries, type LibraryHealth } from "../src/admin/library-health.js";
 import { buildApp } from "../src/api/build-app.js";
 import { createAuthService } from "../src/auth/auth-service.js";
 import { createCatalogQueries } from "../src/catalog/catalog-queries.js";
@@ -427,6 +427,42 @@ describe("GET /api/admin/health", () => {
     ]);
     expect(health.similarAuthors.map((group) => group.names.map((author) => author.name).sort())).toEqual([["J.K. Rowling", "Rowling, J. K."]]);
     expect(health.syncRuns).toMatchObject([{ status: "succeeded", trigger: "manual" }]);
+  });
+
+  it("lists books credited to nobody, with the author their folder names", async () => {
+    await writeBook(path.join(booksDirectory, "Books/E/Mathias Enard/Mathias Enard - Boussole.epub"), "Boussole", []);
+    await writeBook(path.join(booksDirectory, "Books/K/Stephen King/Stephen King - Ça.epub"), "Ça", ["Unknown"]);
+    await writeBook(path.join(booksDirectory, "Books/_Sans auteur/Libres d'obéir.epub"), "Libres d'obéir", []);
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+
+    const { authorlessBooks, similarAuthors } = createLibraryHealthQueries(database).getHealth();
+
+    expect(authorlessBooks.map((book) => [book.title, book.authors, book.suggestedAuthor])).toEqual([
+      ["Boussole", [], "Mathias Enard"],
+      ["Ça", ["Unknown"], "Stephen King"],
+      ["Libres d'obéir", [], null],
+    ]);
+    expect(similarAuthors).toEqual([]);
+  });
+
+  it("groups files that look like the same work, but not namesakes by other authors", async () => {
+    await writeBook(path.join(booksDirectory, "a.epub"), "Le Messie de Dune", ["Frank Herbert"]);
+    await writeBook(path.join(booksDirectory, "b.epub"), "Messie de Dune (poche)", ["Herbert, Frank"]);
+    await writeBook(path.join(booksDirectory, "c.epub"), "Dune", ["Quelqu'un d'autre"]);
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+
+    const { probableDuplicates } = createLibraryHealthQueries(database).getHealth();
+
+    expect(probableDuplicates.map((group) => group.books.map((book) => book.filePath).sort())).toEqual([["a.epub", "b.epub"]]);
+  });
+});
+
+describe("authorFromFilePath", () => {
+  it("reads the author from the library layout only", () => {
+    expect(authorFromFilePath("Books/H/Frank Herbert/Frank Herbert - Dune.epub")).toBe("Frank Herbert");
+    expect(authorFromFilePath("Books/_À identifier/0750a8.epub")).toBeNull();
+    expect(authorFromFilePath("Books/Divers/Dune.epub")).toBeNull();
+    expect(authorFromFilePath("Dune.epub")).toBeNull();
   });
 });
 

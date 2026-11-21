@@ -234,10 +234,23 @@ export type LibraryStats = {
 
 export type MissingField = "cover" | "language" | "description";
 
+export type AuthorlessBook = {
+  id: number;
+  title: string;
+  filePath: string;
+  authors: string[];
+  series: string | null;
+  seriesIndex: number | null;
+  /** Read from the folder the file sits in; null when it names no author. */
+  suggestedAuthor: string | null;
+};
+
 export type LibraryHealth = {
   bookCount: number;
   invalidFiles: { filePath: string; fileSize: number; error: string; detectedAt: string }[];
   incompleteBooks: { id: number; title: string; authors: string[]; missing: MissingField[] }[];
   similarAuthors: { names: { name: string; bookCount: number }[] }[];
+  authorlessBooks: AuthorlessBook[];
+  probableDuplicates: { books: { id: number; title: string; authors: string[]; filePath: string; fileSize: number }[] }[];
   syncRuns: SyncRun[];
 };
