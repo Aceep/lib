@@ -1,7 +1,8 @@
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { FileFingerprint, IndexedFile, LibraryStore } from "../db/library-store.js";
-import { type EpubCover, InvalidEpubError, readEpubMetadata } from "../epub/read-epub-metadata.js";
+import { type EpubCover, type EpubMetadata, InvalidEpubError, readEpubMetadata } from "../epub/read-epub-metadata.js";
+import { hashFile } from "./hash-file.js";
 
 export type IndexFailure = {
   filePath: string;
@@ -31,6 +32,21 @@ const COVER_EXTENSIONS: Record<string, string> = {
   "image/svg+xml": "svg",
 };
 
+/** Relative, "/" separated, the way paths are stored in the database. */
+export function toLibraryPath(booksDirectory: string, absolutePath: string): string {
+  return path.relative(booksDirectory, absolutePath).split(path.sep).join("/");
+}
+
+export async function fingerprintFile(booksDirectory: string, absolutePath: string): Promise<FileFingerprint> {
+  const fileStats = await stat(absolutePath);
+  return {
+    // Stored relative and with "/" so the database survives moving the library or changing OS.
+    filePath: toLibraryPath(booksDirectory, absolutePath),
+    fileSize: fileStats.size,
+    fileMtimeMs: Math.trunc(fileStats.mtimeMs),
+  };
+}
+
 export async function listEpubFiles(booksDirectory: string): Promise<FileFingerprint[]> {
   const entries = await readdir(booksDirectory, { recursive: true, withFileTypes: true });
   const epubFiles: FileFingerprint[] = [];
@@ -38,14 +54,7 @@ export async function listEpubFiles(booksDirectory: string): Promise<FileFingerp
     if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== ".epub") {
       continue;
     }
-    const absolutePath = path.join(entry.parentPath, entry.name);
-    const fileStats = await stat(absolutePath);
-    epubFiles.push({
-      // Stored relative and with "/" so the database survives moving the library or changing OS.
-      filePath: path.relative(booksDirectory, absolutePath).split(path.sep).join("/"),
-      fileSize: fileStats.size,
-      fileMtimeMs: Math.trunc(fileStats.mtimeMs),
-    });
+    epubFiles.push(await fingerprintFile(booksDirectory, path.join(entry.parentPath, entry.name)));
   }
   return epubFiles;
 }
@@ -70,6 +79,29 @@ async function saveCover(coversDirectory: string, bookId: number, cover: EpubCov
   return coverFile;
 }
 
+export type IndexFileOptions = IndexLibraryOptions & {
+  file: FileFingerprint;
+  /** The book currently stored for this path, when the file replaces one. */
+  existing?: IndexedFile | null;
+  /** Metadata already read from the file, to avoid parsing it twice. */
+  metadata?: EpubMetadata;
+  contentHash?: string;
+};
+
+/** Parses one file and writes it to the store (insert or update). Throws when the EPUB cannot be read. */
+export async function indexFile(options: IndexFileOptions): Promise<number> {
+  const { store, booksDirectory, coversDirectory, file, existing = null } = options;
+  const absolutePath = path.join(booksDirectory, file.filePath);
+  const metadata = options.metadata ?? (await readEpubMetadata(absolutePath));
+  const contentHash = options.contentHash ?? (await hashFile(absolutePath));
+
+  await mkdir(coversDirectory, { recursive: true });
+  const bookId = store.saveBook({ ...file, ...metadata, contentHash }, existing?.bookId ?? null);
+  await removeCover(coversDirectory, existing?.coverFile ?? null);
+  store.setCoverFile(bookId, await saveCover(coversDirectory, bookId, metadata.cover));
+  return bookId;
+}
+
 export async function indexLibrary({ store, booksDirectory, coversDirectory }: IndexLibraryOptions): Promise<IndexReport> {
   await mkdir(coversDirectory, { recursive: true });
 
@@ -85,6 +117,10 @@ export async function indexLibrary({ store, booksDirectory, coversDirectory }: I
     invalidByPath.delete(file.filePath);
 
     if (indexed && sameFingerprint(indexed, file)) {
+      if (indexed.contentHash === null) {
+        // Book indexed before hashes existed: fill it in without re-parsing.
+        store.setContentHash(indexed.bookId, await hashFile(path.join(booksDirectory, file.filePath)));
+      }
       report.unchanged++;
       continue;
     }
@@ -93,9 +129,8 @@ export async function indexLibrary({ store, booksDirectory, coversDirectory }: I
       continue;
     }
 
-    let metadata;
     try {
-      metadata = await readEpubMetadata(path.join(booksDirectory, file.filePath));
+      await indexFile({ store, booksDirectory, coversDirectory, file, existing: indexed ?? null });
     } catch (error) {
       const message = (error as Error).message;
       report.failures.push({ filePath: file.filePath, error: message });
@@ -109,10 +144,6 @@ export async function indexLibrary({ store, booksDirectory, coversDirectory }: I
       }
       continue;
     }
-
-    const bookId = store.saveBook({ ...file, ...metadata }, indexed?.bookId ?? null);
-    await removeCover(coversDirectory, indexed?.coverFile ?? null);
-    store.setCoverFile(bookId, await saveCover(coversDirectory, bookId, metadata.cover));
     if (indexed) {
       report.updated++;
     } else {

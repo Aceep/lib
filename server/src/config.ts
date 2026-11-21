@@ -7,6 +7,8 @@ export type ServerConfig = {
   dataDirectory: string;
   databasePath: string;
   coversDirectory: string;
+  /** Where uploaded EPUBs wait for confirmation. */
+  uploadsDirectory: string;
   webDirectory: string;
   /** rclone source to mirror into the books directory, e.g. "mega:Livres". Null skips the pull. */
   rcloneRemote: string | null;
@@ -49,6 +51,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
     dataDirectory,
     databasePath: path.join(dataDirectory, "library.sqlite"),
     coversDirectory: path.join(dataDirectory, "covers"),
+    uploadsDirectory: path.join(dataDirectory, "uploads"),
     webDirectory: directoryFromEnvironment(environment, "WEB_DIR", path.join(import.meta.dirname, "../../web/dist")),
     rcloneRemote: environment.RCLONE_REMOTE?.trim() || null,
     syncCron: parseSyncCron(environment.SYNC_CRON),

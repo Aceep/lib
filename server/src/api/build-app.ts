@@ -1,14 +1,18 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
+import fastifyMultipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyServerOptions } from "fastify";
 import type { BookSort, CatalogQueries } from "../catalog/catalog-queries.js";
 import type { SyncService } from "../sync/sync-service.js";
+import { UploadError, type UploadService } from "../uploads/upload-service.js";
 
 export type AppOptions = {
   catalog: CatalogQueries;
   sync: SyncService;
+  /** Omitted in tests that do not exercise uploads; the upload routes are then not registered. */
+  uploads?: UploadService;
   /** When the next scheduled sync will run, null when scheduling is off. */
   nextScheduledSyncAt: () => Date | null;
   booksDirectory: string;
@@ -28,12 +32,22 @@ type BookListQuerystring = {
 };
 
 type BookParams = { id: number };
+type UploadParams = { id: string };
 
 const bookParamsSchema = {
   type: "object",
   required: ["id"],
   properties: { id: { type: "integer", minimum: 1 } },
 } as const;
+
+const uploadParamsSchema = {
+  type: "object",
+  required: ["id"],
+  properties: { id: { type: "string", format: "uuid" } },
+} as const;
+
+// Generous for an EPUB (a few MB usually, tens of MB with many images).
+const MAX_UPLOAD_BYTES = 300 * 1024 * 1024;
 
 const bookListQuerystringSchema = {
   type: "object",
@@ -85,12 +99,20 @@ function notFound(reply: FastifyReply, message: string) {
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
-  const { catalog, sync, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } = options;
+  const { catalog, sync, uploads, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } = options;
   const app = Fastify({ logger });
 
   if (webDirectory) {
     void app.register(fastifyStatic, { root: webDirectory, wildcard: false });
   }
+  void app.register(fastifyMultipart, { limits: { files: 1, fileSize: MAX_UPLOAD_BYTES } });
+
+  app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof UploadError) {
+      return reply.code(error.status).send({ error: error.code, message: error.message });
+    }
+    return reply.send(error);
+  });
 
   app.setNotFoundHandler(async (request, reply) => {
     const isPageNavigation = request.method === "GET" && !request.url.startsWith("/api/");
@@ -113,6 +135,25 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
     return reply.code(202).send(run);
   });
+
+  if (uploads) {
+    app.post("/api/uploads", async (request, reply) => {
+      const part = await request.file();
+      if (!part) {
+        return reply.code(400).send({ error: "no_file", message: "Send the EPUB as a multipart field" });
+      }
+      return reply.code(201).send(await uploads.stage(part.filename, part.file));
+    });
+
+    app.post<{ Params: UploadParams }>("/api/uploads/:id/confirm", { schema: { params: uploadParamsSchema } }, async (request) =>
+      uploads.confirm(request.params.id),
+    );
+
+    app.delete<{ Params: UploadParams }>("/api/uploads/:id", { schema: { params: uploadParamsSchema } }, async (request, reply) => {
+      await uploads.cancel(request.params.id);
+      return reply.code(204).send();
+    });
+  }
 
   app.get<{ Querystring: BookListQuerystring }>(
     "/api/books",

@@ -3,6 +3,7 @@ import { BrowserRouter, Link, Route, Routes } from "react-router";
 import { BookPage } from "./book/BookPage.js";
 import { CatalogPage } from "./catalog/CatalogPage.js";
 import { SyncPanel } from "./sync/SyncPanel.js";
+import { UploadPage } from "./upload/UploadPage.js";
 
 function NotFoundPage() {
   return (
@@ -14,21 +15,27 @@ function NotFoundPage() {
 }
 
 export function App() {
-  // Bumped after each sync so the catalog and filters refetch without a page reload.
+  // Bumped after each sync or upload so the catalog and filters refetch without a page reload.
   const [libraryVersion, setLibraryVersion] = useState(0);
-  const handleSynced = useCallback(() => setLibraryVersion((version) => version + 1), []);
+  const handleLibraryChanged = useCallback(() => setLibraryVersion((version) => version + 1), []);
 
   return (
     <BrowserRouter>
       <header className="app-header">
-        <Link to="/" className="app-title">
-          Kyle Lib
-        </Link>
-        <SyncPanel onSynced={handleSynced} />
+        <div className="app-nav">
+          <Link to="/" className="app-title">
+            Kyle Lib
+          </Link>
+          <Link to="/upload" className="button">
+            Ajouter des livres
+          </Link>
+        </div>
+        <SyncPanel onSynced={handleLibraryChanged} />
       </header>
       <Routes>
         <Route path="/" element={<CatalogPage libraryVersion={libraryVersion} />} />
         <Route path="/books/:bookId" element={<BookPage />} />
+        <Route path="/upload" element={<UploadPage onLibraryChanged={handleLibraryChanged} />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>

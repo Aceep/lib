@@ -1,4 +1,4 @@
-import type { BookDetails, BookPage, BookSort, CatalogFacets, SyncRun, SyncStatus } from "./types.js";
+import type { BookDetails, BookPage, BookSort, CatalogFacets, SyncRun, SyncStatus, UploadPreview, UploadResult } from "./types.js";
 
 export class ApiError extends Error {
   constructor(
@@ -54,6 +54,25 @@ export function fetchSyncStatus(signal?: AbortSignal): Promise<SyncStatus> {
 
 export function startSync(): Promise<SyncRun> {
   return requestJson("/api/sync", { method: "POST" });
+}
+
+/** Sends the file to the staging area; nothing enters the library until `confirmUpload`. */
+export function stageUpload(file: File, signal?: AbortSignal): Promise<UploadPreview> {
+  const body = new FormData();
+  body.append("file", file, file.name);
+  return requestJson("/api/uploads", { method: "POST", body, signal: signal ?? null });
+}
+
+export function confirmUpload(uploadId: string): Promise<UploadResult> {
+  return requestJson(`/api/uploads/${uploadId}/confirm`, { method: "POST" });
+}
+
+export async function cancelUpload(uploadId: string): Promise<void> {
+  const response = await fetch(`/api/uploads/${uploadId}`, { method: "DELETE" });
+  // 404 means it already expired server-side: the outcome the caller wanted.
+  if (!response.ok && response.status !== 404) {
+    throw new ApiError(response.status, `HTTP ${response.status}`);
+  }
 }
 
 export const coverUrl = (bookId: number) => `/api/books/${bookId}/cover`;

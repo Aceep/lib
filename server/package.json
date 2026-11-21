@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fastify/multipart": "^9.4.0",
     "@fastify/static": "^10.1.12",
     "better-sqlite3": "^13.2.0",
     "croner": "^11.0.1",

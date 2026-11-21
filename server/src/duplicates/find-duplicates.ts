@@ -1,9 +1,7 @@
-import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
 import path from "node:path";
-import { pipeline } from "node:stream/promises";
 import { toSortKey } from "../db/sort-key.js";
 import { readEpubMetadata } from "../epub/read-epub-metadata.js";
+import { hashFile } from "../library/hash-file.js";
 import { listEpubFiles } from "../library/index-library.js";
 
 export type ScannedFile = {
@@ -38,12 +36,6 @@ export type DuplicateReport = {
 
 // Names that download managers and copy-paste leave behind: "Dune (1).epub", "Dune - copie.epub", "Dune copy.epub".
 const COPY_MARKER = /\(\d+\)|\bcopie\b|\bcopy\b/i;
-
-async function hashFile(absolutePath: string): Promise<string> {
-  const hash = createHash("sha256");
-  await pipeline(createReadStream(absolutePath), hash);
-  return hash.digest("hex");
-}
 
 /**
  * Lower is better. A file without a copy marker is preferred, then the larger file (more likely to carry a cover

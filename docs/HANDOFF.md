@@ -80,6 +80,20 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
   (`invalid relative path: OPS/../cover.jpg`) ; l'indexeur l'ignorera aussi. À voir si on assouplit ou si on répare le fichier.
 - Attention : le quota de transfert du compte MEGA gratuit limite la synchro complète.
 
+## Ajout de livres depuis l'appli (fait le 2026-11-21)
+
+- Page `/upload` (bouton « Ajouter des livres » dans l'en-tête). Flux en deux temps :
+  `POST /api/uploads` (multipart, champ `file`) dépose l'EPUB dans `DATA_DIR/uploads/`, lit les métadonnées, propose le
+  chemin `Books/<Lettre>/<Prénom Nom>/<Prénom Nom - Titre>.epub` (mêmes règles que le rangement, `file-naming.ts`)
+  et liste les doublons : `identical` (même SHA-256), `same-book` (même titre + auteurs normalisés), `same-path`.
+  Puis `POST /api/uploads/:id/confirm` range le fichier, le pousse sur MEGA (`rclone copyto`, obligatoire sinon la
+  synchro suivante l'effacerait — en cas d'échec le fichier reste en transit et on peut re-confirmer) et l'indexe ;
+  `DELETE /api/uploads/:id` annule. Les uploads non confirmés expirent après 1 h et au redémarrage.
+- Nouvelle colonne `books.content_hash` (migration 3), remplie à l'indexation (rattrapage automatique des anciens livres).
+- La synchro ne tire plus que `*.epub` depuis MEGA (`Library/` contient aussi ~7 Go de BD et PDF).
+- Vérifié de bout en bout sur la vraie bibliothèque (doublon détecté, livre de test poussé sur MEGA puis supprimé).
+- Limite : 300 Mo par fichier, un fichier par requête (le front envoie les fichiers un par un).
+
 ## Plus tard
 
 - Étape 7 : Dockerfile + compose (rclone dans l'image, build de prod du serveur au lieu de `tsx`).

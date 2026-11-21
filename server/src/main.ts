@@ -8,16 +8,18 @@ import { createLibraryStore } from "./db/library-store.js";
 import { runCommand } from "./sync/run-command.js";
 import { scheduleSync } from "./sync/schedule-sync.js";
 import { createSyncService } from "./sync/sync-service.js";
+import { createUploadService } from "./uploads/upload-service.js";
 
 const config = loadConfig();
 await mkdir(config.dataDirectory, { recursive: true });
 
 const database = openLibraryDatabase(config.databasePath);
+const store = createLibraryStore(database);
 let logError: (message: string, error: unknown) => void = (message, error) => console.error(message, error);
 
 const sync = createSyncService({
   database,
-  store: createLibraryStore(database),
+  store,
   booksDirectory: config.booksDirectory,
   coversDirectory: config.coversDirectory,
   rcloneRemote: config.rcloneRemote,
@@ -25,10 +27,19 @@ const sync = createSyncService({
   logError: (message, error) => logError(message, error),
 });
 const schedule = config.syncCron ? scheduleSync(config.syncCron, sync) : null;
+const uploads = await createUploadService({
+  store,
+  booksDirectory: config.booksDirectory,
+  coversDirectory: config.coversDirectory,
+  uploadsDirectory: config.uploadsDirectory,
+  rcloneRemote: config.rcloneRemote,
+  runCommand,
+});
 
 const app = buildApp({
   catalog: createCatalogQueries(database),
   sync,
+  uploads,
   nextScheduledSyncAt: () => schedule?.nextRunAt() ?? null,
   booksDirectory: config.booksDirectory,
   coversDirectory: config.coversDirectory,

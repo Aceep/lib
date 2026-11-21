@@ -50,3 +50,28 @@ export type SyncStatus = {
   lastFinished: SyncRun | null;
   nextScheduledAt: string | null;
 };
+
+export type UploadDuplicate = {
+  bookId: number;
+  title: string;
+  authors: string[];
+  filePath: string;
+  /** identical: same bytes; same-book: same title and authors; same-path: a file already has the target name. */
+  reason: "identical" | "same-book" | "same-path";
+};
+
+export type UploadPreview = {
+  id: string;
+  originalName: string;
+  fileSize: number;
+  title: string;
+  authors: string[];
+  language: string | null;
+  targetPath: string;
+  duplicates: UploadDuplicate[];
+};
+
+export type UploadResult = {
+  bookId: number;
+  filePath: string;
+};

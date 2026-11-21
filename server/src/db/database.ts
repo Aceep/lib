@@ -65,6 +65,12 @@ const MIGRATIONS: string[] = [
     error TEXT
   );
   `,
+  `
+  -- SHA-256 of the file, so an upload can be recognised as a copy of a book already in the library.
+  -- NULL until the indexer gets to a book that predates this column.
+  ALTER TABLE books ADD COLUMN content_hash TEXT;
+  CREATE INDEX books_content_hash ON books (content_hash);
+  `,
 ];
 
 function migrate(database: LibraryDatabase): void {
