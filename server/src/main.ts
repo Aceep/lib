@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { buildApp } from "./api/build-app.js";
 import { createActivityLog } from "./activity/activity-log.js";
+import { createBookAdmin } from "./admin/book-admin.js";
 import { createLibraryHealthQueries } from "./admin/library-health.js";
 import { createAuthService } from "./auth/auth-service.js";
 import { createCatalogQueries } from "./catalog/catalog-queries.js";
@@ -58,6 +59,15 @@ const app = buildApp({
   auth,
   activity,
   health: createLibraryHealthQueries(database),
+  books: createBookAdmin({
+    store,
+    booksDirectory: config.booksDirectory,
+    coversDirectory: config.coversDirectory,
+    localTrashDirectory: config.trashDirectory,
+    rcloneRemote: config.rcloneRemote,
+    rcloneTrash: config.rcloneTrash,
+    runCommand,
+  }),
   trustProxy: config.trustProxy,
   sync,
   uploads,
@@ -82,7 +92,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 
 await app.listen({ port: config.port, host: config.host });
 app.log.info(
-  { rcloneRemote: config.rcloneRemote, syncCron: config.syncCron, nextSyncAt: schedule?.nextRunAt() ?? null },
+  { rcloneRemote: config.rcloneRemote, rcloneTrash: config.rcloneTrash, syncCron: config.syncCron, nextSyncAt: schedule?.nextRunAt() ?? null },
   "sync configuration",
 );
 if (createdInitialAdmin) {

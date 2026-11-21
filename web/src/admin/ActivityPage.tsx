@@ -14,6 +14,9 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   upload_rejected: "Envoi refusé",
   upload_cancelled: "Envoi annulé",
   sync_started: "Synchro lancée",
+  book_edited: "Fiche corrigée",
+  book_deleted: "Livre supprimé",
+  authors_merged: "Auteurs fusionnés",
   login: "Connexion",
   login_failed: "Connexion échouée",
   logout: "Déconnexion",
@@ -49,6 +52,19 @@ function ActivitySubject({ entry }: { entry: ActivityEntry }): ReactNode {
         </>
       );
     }
+    case "book_edited": {
+      const renamed = details.previousTitle !== details.title ? ` (avant : ${text(details.previousTitle)})` : "";
+      return (
+        <>
+          {entry.bookId !== null ? <Link to={`/books/${entry.bookId}`}>{text(details.title)}</Link> : text(details.title)}
+          {renamed}
+        </>
+      );
+    }
+    case "book_deleted":
+      return `${text(details.title)} → ${text(details.trashedTo)}`;
+    case "authors_merged":
+      return `${text(details.from)} → ${text(details.into)} (${text(details.changedBooks)} livres)`;
     case "upload_submitted":
     case "upload_cancelled":
       return text(details.title);

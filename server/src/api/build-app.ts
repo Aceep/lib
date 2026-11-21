@@ -5,6 +5,7 @@ import fastifyMultipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, type FastifyServerOptions } from "fastify";
 import { ACTIVITY_ACTIONS, type ActivityAction, type ActivityLog } from "../activity/activity-log.js";
+import { type BookAdmin, BookAdminError } from "../admin/book-admin.js";
 import type { LibraryHealthQueries } from "../admin/library-health.js";
 import { AuthError, type AuthService } from "../auth/auth-service.js";
 import type { BookSort, CatalogQueries } from "../catalog/catalog-queries.js";
@@ -18,6 +19,8 @@ export type AppOptions = {
   auth?: AuthService;
   /** Omitted in tests that do not look at the log; nothing is recorded then. */
   activity?: ActivityLog;
+  /** Editing and deleting books; the routes are not registered without it. */
+  books?: BookAdmin;
   /** Admin report on what is wrong with the library; the route is not registered without it. */
   health?: LibraryHealthQueries;
   /** True behind a reverse proxy, so the client address and protocol come from the X-Forwarded-* headers. */
@@ -38,6 +41,7 @@ type BookListQuerystring = {
   q?: string;
   author?: string;
   language?: string;
+  series?: string;
   sort: BookSort;
   page: number;
   pageSize: number;
@@ -83,6 +87,32 @@ const uploadChangesSchema = {
   additionalProperties: false,
 } as const;
 
+type BookCorrectionBody = { title: string; authors: string[]; series: string | null; seriesIndex: number | null };
+
+const bookCorrectionSchema = {
+  type: "object",
+  required: ["title", "authors", "series", "seriesIndex"],
+  properties: {
+    title: { type: "string", maxLength: 500 },
+    authors: { type: "array", maxItems: 10, items: { type: "string", maxLength: 200 } },
+    series: { type: ["string", "null"], maxLength: 300 },
+    seriesIndex: { type: ["number", "null"], minimum: 0, maximum: 100000 },
+  },
+  additionalProperties: false,
+} as const;
+
+type MergeAuthorsBody = { from: string[]; into: string };
+
+const mergeAuthorsSchema = {
+  type: "object",
+  required: ["from", "into"],
+  properties: {
+    from: { type: "array", minItems: 1, maxItems: 50, items: { type: "string", maxLength: 200 } },
+    into: { type: "string", maxLength: 200 },
+  },
+  additionalProperties: false,
+} as const;
+
 const rejectUploadSchema = {
   type: "object",
   properties: { reason: { type: "string", maxLength: 500 } },
@@ -110,6 +140,7 @@ const bookListQuerystringSchema = {
     q: { type: "string", maxLength: 200 },
     author: { type: "string", maxLength: 300 },
     language: { type: "string", maxLength: 20 },
+    series: { type: "string", maxLength: 300 },
     sort: { type: "string", enum: ["relevance", "title", "recent"], default: "relevance" },
     page: { type: "integer", minimum: 1, default: 1 },
     pageSize: { type: "integer", minimum: 1, maximum: 100, default: 24 },
@@ -154,7 +185,7 @@ function notFound(reply: FastifyReply, message: string) {
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
-  const { catalog, auth, activity, health, sync, uploads, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } = options;
+  const { catalog, auth, activity, health, books, sync, uploads, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } = options;
   const app = Fastify({ logger, trustProxy: options.trustProxy ?? false });
 
   if (webDirectory) {
@@ -164,6 +195,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof UploadError) {
+      return reply.code(error.status).send({ error: error.code, message: error.message });
+    }
+    if (error instanceof BookAdminError) {
       return reply.code(error.status).send({ error: error.code, message: error.message });
     }
     if (error instanceof AuthError) {
@@ -258,6 +292,38 @@ export function buildApp(options: AppOptions): FastifyInstance {
     );
   }
 
+  if (books) {
+    app.patch<{ Params: BookParams; Body: BookCorrectionBody }>(
+      "/api/admin/books/:id",
+      { schema: { params: bookParamsSchema, body: bookCorrectionSchema } },
+      async (request) => {
+        const { before, after } = await books.correct(request.params.id, request.body, uploadActor(request).username);
+        activity?.record("book_edited", actorOf(request), {
+          bookId: request.params.id,
+          details: { title: after.title, previousTitle: before.title, authors: after.authors.join(", "), previousAuthors: before.authors.join(", ") },
+        });
+        return catalog.getBook(request.params.id);
+      },
+    );
+
+    app.delete<{ Params: BookParams }>("/api/admin/books/:id", { schema: { params: bookParamsSchema } }, async (request, reply) => {
+      const removed = await books.remove(request.params.id);
+      activity?.record("book_deleted", actorOf(request), {
+        bookId: request.params.id,
+        details: { title: removed.title, authors: removed.authors.join(", "), filePath: removed.filePath, trashedTo: removed.trashedTo },
+      });
+      return reply.code(204).send();
+    });
+
+    app.post<{ Body: MergeAuthorsBody }>("/api/admin/authors/merge", { schema: { body: mergeAuthorsSchema } }, async (request) => {
+      const result = await books.mergeAuthors(request.body.from, request.body.into, uploadActor(request).username);
+      activity?.record("authors_merged", actorOf(request), {
+        details: { into: result.into, from: request.body.from.join(" | "), changedBooks: result.changedBooks },
+      });
+      return result;
+    });
+  }
+
   if (health) {
     app.get("/api/admin/health", async () => ({ ...health.getHealth(), syncRuns: sync.listRecentRuns(20) }));
   }
@@ -282,11 +348,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
     "/api/books",
     { schema: { querystring: bookListQuerystringSchema } },
     async (request) => {
-      const { q, author, language, sort, page, pageSize } = request.query;
+      const { q, author, language, series, sort, page, pageSize } = request.query;
       return catalog.listBooks({
         query: q?.trim() || null,
         author: author?.trim() || null,
         language: language?.trim().toLowerCase() || null,
+        series: series?.trim() || null,
         sort,
         page,
         pageSize,

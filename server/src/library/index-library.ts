@@ -121,6 +121,15 @@ export async function indexLibrary({ store, booksDirectory, coversDirectory }: I
         // Book indexed before hashes existed: fill it in without re-parsing.
         store.setContentHash(indexed.bookId, await hashFile(path.join(booksDirectory, file.filePath)));
       }
+      if (!indexed.seriesChecked) {
+        // Book indexed before series were read: fetch just that, keeping titles and authors corrected since.
+        try {
+          const { series, seriesIndex } = await readEpubMetadata(path.join(booksDirectory, file.filePath));
+          store.backfillSeries(indexed.bookId, series, seriesIndex);
+        } catch {
+          // It parsed once, so this is a passing I/O problem: the next run tries again.
+        }
+      }
       report.unchanged++;
       continue;
     }

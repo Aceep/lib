@@ -35,6 +35,38 @@ describe("readEpubMetadata", () => {
     expect(metadata).toMatchObject({ title: "Le Petit Prince", authors: ["Antoine de Saint-Exupéry"], language: "fr" });
   });
 
+  it("reads the series and position written by Calibre", async () => {
+    const filePath = await epubWithOpf(
+      "book.epub",
+      `<dc:title>Fondation et Empire</dc:title><meta name="calibre:series" content="Fondation"/><meta name="calibre:series_index" content="2.0"/>`,
+    );
+
+    expect(await readEpubMetadata(filePath)).toMatchObject({ series: "Fondation", seriesIndex: 2 });
+  });
+
+  it("reads an EPUB3 collection and its group position", async () => {
+    const filePath = await epubWithOpf(
+      "book.epub",
+      `<dc:title>La Communauté de l'anneau</dc:title>
+       <meta property="belongs-to-collection" id="c01">Le Seigneur des anneaux</meta>
+       <meta refines="#c01" property="collection-type">series</meta>
+       <meta refines="#c01" property="group-position">1</meta>`,
+    );
+
+    expect(await readEpubMetadata(filePath)).toMatchObject({ series: "Le Seigneur des anneaux", seriesIndex: 1 });
+  });
+
+  it("reports no series when the file names none, and no position when it is not a number", async () => {
+    const plain = await epubWithOpf("plain.epub", `<dc:title>Dune</dc:title>`);
+    const unnumbered = await epubWithOpf(
+      "unnumbered.epub",
+      `<dc:title>Dune</dc:title><meta name="calibre:series" content="Cycle de Dune"/><meta name="calibre:series_index" content="premier"/>`,
+    );
+
+    expect(await readEpubMetadata(plain)).toMatchObject({ series: null, seriesIndex: null });
+    expect(await readEpubMetadata(unnumbered)).toMatchObject({ series: "Cycle de Dune", seriesIndex: null });
+  });
+
   it("decodes entities that were escaped twice in title and authors", async () => {
     const filePath = await epubWithOpf(
       "book.epub",

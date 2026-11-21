@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readCatalogParams, updateCatalogParams, writeCatalogParams } from "../src/catalog/catalog-params.js";
 
-const DEFAULTS = { query: "", author: "", language: "", sort: "relevance", page: 1 } as const;
+const DEFAULTS = { query: "", author: "", language: "", series: "", sort: "relevance", page: 1 } as const;
 
 describe("readCatalogParams", () => {
   it("falls back to defaults on an empty URL", () => {
@@ -9,9 +9,9 @@ describe("readCatalogParams", () => {
   });
 
   it("reads every parameter", () => {
-    const params = readCatalogParams(new URLSearchParams("q=dune&author=Frank%20Herbert&language=en&sort=recent&page=3"));
+    const params = readCatalogParams(new URLSearchParams("q=dune&author=Frank%20Herbert&language=en&series=Cycle%20de%20Dune&sort=recent&page=3"));
 
-    expect(params).toEqual({ query: "dune", author: "Frank Herbert", language: "en", sort: "recent", page: 3 });
+    expect(params).toEqual({ query: "dune", author: "Frank Herbert", language: "en", series: "Cycle de Dune", sort: "recent", page: 3 });
   });
 
   it("ignores an unknown sort and an invalid page", () => {
@@ -25,7 +25,7 @@ describe("writeCatalogParams", () => {
   });
 
   it("round-trips through readCatalogParams", () => {
-    const params = { query: "été", author: "Annie Ernaux", language: "fr", sort: "title", page: 2 } as const;
+    const params = { query: "été", author: "Annie Ernaux", language: "fr", series: "Les Années", sort: "title", page: 2 } as const;
 
     expect(readCatalogParams(writeCatalogParams(params))).toEqual(params);
   });

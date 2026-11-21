@@ -7,6 +7,9 @@ export type BookSummary = {
   title: string;
   authors: string[];
   language: string | null;
+  series: string | null;
+  /** Position in the series; null when the book has no series or no number. */
+  seriesIndex: number | null;
   hasCover: boolean;
 };
 
@@ -93,6 +96,14 @@ export type UploadResult = {
   filePath: string;
 };
 
+/** What an admin may correct on a book. */
+export type BookCorrection = {
+  title: string;
+  authors: string[];
+  series: string | null;
+  seriesIndex: number | null;
+};
+
 export type UserRole = "admin" | "member";
 
 export type User = {
@@ -116,7 +127,10 @@ export type ActivityAction =
   | "upload_approved"
   | "upload_rejected"
   | "upload_cancelled"
-  | "sync_started";
+  | "sync_started"
+  | "book_edited"
+  | "book_deleted"
+  | "authors_merged";
 
 export type ActivityEntry = {
   id: number;

@@ -5,6 +5,7 @@ import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type ActivityEntry, createActivityLog } from "../src/activity/activity-log.js";
+import { createBookAdmin } from "../src/admin/book-admin.js";
 import { authorIdentityKey, createLibraryHealthQueries, type LibraryHealth } from "../src/admin/library-health.js";
 import { buildApp } from "../src/api/build-app.js";
 import { createAuthService } from "../src/auth/auth-service.js";
@@ -26,6 +27,9 @@ let uploadsDirectory: string;
 let database: LibraryDatabase;
 let app: FastifyInstance;
 let currentTime: Date;
+let rcloneRemote: string | null;
+let rcloneCalls: string[][];
+let rcloneExitCode: number;
 
 type Session = { cookie: string };
 
@@ -38,7 +42,10 @@ async function writeBook(filePath: string, title: string, authors: string[], ext
 /** Builds the whole app on the current directories; called again in a test to simulate a restart. */
 async function startApp(): Promise<void> {
   const store = createLibraryStore(database);
-  const runCommand = async () => ({ exitCode: 0, stderrTail: "" });
+  const runCommand = async (command: string, args: string[]) => {
+    rcloneCalls.push([command, ...args]);
+    return { exitCode: rcloneExitCode, stderrTail: rcloneExitCode === 0 ? "" : "quota exceeded" };
+  };
   const sync = createSyncService({ database, store, booksDirectory, coversDirectory, rcloneRemote: null, runCommand, logError: () => {} });
   const now = () => currentTime;
   app = buildApp({
@@ -46,6 +53,15 @@ async function startApp(): Promise<void> {
     auth: await createAuthService({ database, now }),
     activity: createActivityLog({ database, now }),
     health: createLibraryHealthQueries(database),
+    books: createBookAdmin({
+      store,
+      booksDirectory,
+      coversDirectory,
+      localTrashDirectory: path.join(workDirectory, "trash"),
+      rcloneRemote,
+      rcloneTrash: rcloneRemote ? "mega:_corbeille" : null,
+      runCommand,
+    }),
     uploads: await createUploadService({ database, store, booksDirectory, coversDirectory, uploadsDirectory, rcloneRemote: null, runCommand, now }),
     sync,
     nextScheduledSyncAt: () => null,
@@ -56,6 +72,9 @@ async function startApp(): Promise<void> {
 
 beforeEach(async () => {
   currentTime = new Date("2026-11-21T10:00:00Z");
+  rcloneRemote = null;
+  rcloneCalls = [];
+  rcloneExitCode = 0;
   workDirectory = await mkdtemp(path.join(os.tmpdir(), "kyle-lib-admin-"));
   booksDirectory = path.join(workDirectory, "books");
   coversDirectory = path.join(workDirectory, "covers");
@@ -420,5 +439,251 @@ describe("authorIdentityKey", () => {
 
   it("tells different people apart", () => {
     expect(authorIdentityKey("Frank Herbert")).not.toBe(authorIdentityKey("Brian Herbert"));
+  });
+});
+
+const CALIBRE_SERIES = (name: string, index: number) =>
+  `<meta name="calibre:series" content="${name}"/><meta name="calibre:series_index" content="${index}"/>`;
+
+function bookId(title: string): number {
+  const row = database.prepare<[string], { id: number }>("SELECT id FROM books WHERE title = ?").get(title);
+  if (!row) {
+    throw new Error(`No book titled ${title}`);
+  }
+  return row.id;
+}
+
+/** Makes the indexer see every file as changed, the way a rebuilt index or a re-synced library would. */
+async function reindexEverything(): Promise<void> {
+  database.prepare("UPDATE books SET file_mtime_ms = -1").run();
+  await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+}
+
+async function listTitles(session: Session, querystring: string): Promise<string[]> {
+  const response = await app.inject({ method: "GET", url: `/api/books?${querystring}`, headers: session });
+  expect(response.statusCode).toBe(200);
+  return response.json<{ items: { title: string }[] }>().items.map((item) => item.title);
+}
+
+describe("series", () => {
+  beforeEach(async () => {
+    await writeBook(path.join(booksDirectory, "f2.epub"), "Fondation et Empire", ["Isaac Asimov"], CALIBRE_SERIES("Fondation", 2));
+    await writeBook(path.join(booksDirectory, "f1.epub"), "Fondation", ["Isaac Asimov"], CALIBRE_SERIES("Fondation", 1));
+    await writeBook(path.join(booksDirectory, "f3.epub"), "Seconde Fondation", ["Isaac Asimov"], CALIBRE_SERIES("Fondation", 3));
+    await writeBook(path.join(booksDirectory, "robots.epub"), "Les Robots", ["Isaac Asimov"]);
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+  });
+
+  it("are listed in reading order and shown on each book", async () => {
+    const bob = await sessionOf("bob");
+
+    expect(await listTitles(bob, "series=Fondation")).toEqual(["Fondation", "Fondation et Empire", "Seconde Fondation"]);
+    const book = await app.inject({ method: "GET", url: `/api/books/${bookId("Seconde Fondation")}`, headers: bob });
+    expect(book.json()).toMatchObject({ series: "Fondation", seriesIndex: 3 });
+  });
+
+  it("make every volume findable by the series name", async () => {
+    await writeBook(path.join(booksDirectory, "d1.epub"), "Les Cavernes d'acier", ["Isaac Asimov"], CALIBRE_SERIES("Cycle des robots", 1));
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+
+    expect(await listTitles(await sessionOf("bob"), "q=cycle robots")).toEqual(["Les Cavernes d'acier"]);
+  });
+
+  it("are filled in for books indexed before series were read, without undoing corrections", async () => {
+    const id = bookId("Fondation");
+    database.prepare("UPDATE books SET series = NULL, series_index = NULL, series_checked = 0, title = 'Fondation (corrigé)' WHERE id = ?").run(id);
+
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+
+    const book = await app.inject({ method: "GET", url: `/api/books/${id}`, headers: await sessionOf("bob") });
+    expect(book.json()).toMatchObject({ title: "Fondation (corrigé)", series: "Fondation", seriesIndex: 1 });
+  });
+});
+
+describe("PATCH /api/admin/books/:id", () => {
+  const correction = { title: "Dune (édition révisée)", authors: ["Herbert, Frank", " "], series: " Cycle de Dune ", seriesIndex: 1 };
+
+  it("is closed to members", async () => {
+    const response = await app.inject({ method: "PATCH", url: `/api/admin/books/${bookId("Dune")}`, headers: await sessionOf("bob"), payload: correction });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("corrects what the catalog shows and what the search finds", async () => {
+    const admin = await adminSession();
+    const id = bookId("Dune");
+
+    const response = await app.inject({ method: "PATCH", url: `/api/admin/books/${id}`, headers: admin, payload: correction });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ title: "Dune (édition révisée)", authors: ["Herbert, Frank"], series: "Cycle de Dune", seriesIndex: 1 });
+    expect(await listTitles(admin, "q=révisée")).toEqual(["Dune (édition révisée)"]);
+    expect(await listTitles(admin, `author=${encodeURIComponent("Herbert, Frank")}`)).toEqual(["Dune (édition révisée)"]);
+    expect(await listTitles(admin, `author=${encodeURIComponent("Frank Herbert")}`)).toEqual([]);
+    expect((await activityEntries(admin, "action=book_edited"))[0]).toMatchObject({
+      username: "alice",
+      bookId: id,
+      details: { title: "Dune (édition révisée)", previousTitle: "Dune", previousAuthors: "Frank Herbert" },
+    });
+  });
+
+  it("keeps the correction when the file is indexed again, even after it moved", async () => {
+    const admin = await adminSession();
+    await app.inject({ method: "PATCH", url: `/api/admin/books/${bookId("Dune")}`, headers: admin, payload: correction });
+
+    await reindexEverything();
+    expect(await listTitles(admin, "")).toEqual(["Dune (édition révisée)"]);
+
+    await mkdir(path.join(booksDirectory, "Rangé"));
+    await (await import("node:fs/promises")).rename(path.join(booksDirectory, "dune.epub"), path.join(booksDirectory, "Rangé/dune.epub"));
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+    const moved = await app.inject({ method: "GET", url: `/api/books/${bookId("Dune (édition révisée)")}`, headers: admin });
+    expect(moved.json()).toMatchObject({ authors: ["Herbert, Frank"], series: "Cycle de Dune" });
+  });
+
+  it("can remove a book from its series", async () => {
+    const admin = await adminSession();
+    const id = bookId("Dune");
+    await app.inject({ method: "PATCH", url: `/api/admin/books/${id}`, headers: admin, payload: correction });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/admin/books/${id}`,
+      headers: admin,
+      payload: { ...correction, series: null, seriesIndex: 4 },
+    });
+
+    expect(response.json()).toMatchObject({ series: null, seriesIndex: null });
+  });
+
+  it("refuses an empty title and an unknown book", async () => {
+    const admin = await adminSession();
+
+    const emptyTitle = await app.inject({ method: "PATCH", url: `/api/admin/books/${bookId("Dune")}`, headers: admin, payload: { ...correction, title: " " } });
+    const unknown = await app.inject({ method: "PATCH", url: "/api/admin/books/999", headers: admin, payload: correction });
+
+    expect(emptyTitle.statusCode).toBe(400);
+    expect(unknown.statusCode).toBe(404);
+  });
+});
+
+describe("a title corrected at upload time", () => {
+  it("survives a re-index", async () => {
+    const admin = await adminSession();
+    const preview = await stage(admin, "Dan Simmons", ["Hyperion"]);
+    await app.inject({ method: "PATCH", url: `/api/uploads/${preview.id}`, headers: admin, payload: { title: "Hyperion", authors: ["Dan Simmons"] } });
+    await app.inject({ method: "POST", url: `/api/uploads/${preview.id}/confirm`, headers: admin });
+
+    await reindexEverything();
+
+    expect(bookTitles()).toEqual(["Dune", "Hyperion"]);
+  });
+});
+
+describe("POST /api/admin/authors/merge", () => {
+  beforeEach(async () => {
+    await writeBook(path.join(booksDirectory, "messie.epub"), "Le Messie de Dune", ["Herbert, Frank"]);
+    await writeBook(path.join(booksDirectory, "duo.epub"), "La Maison des mères", ["HERBERT Frank", "Brian Herbert"]);
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+  });
+
+  async function authorFacets(session: Session): Promise<[string, number][]> {
+    const facets = (await app.inject({ method: "GET", url: "/api/facets", headers: session })).json<{ authors: { name: string; bookCount: number }[] }>();
+    return facets.authors.map((author) => [author.name, author.bookCount]);
+  }
+
+  it("is closed to members", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/authors/merge",
+      headers: await sessionOf("bob"),
+      payload: { from: ["Herbert, Frank"], into: "Frank Herbert" },
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("gives one name to every spelling, keeping co-authors, and holds after a re-index", async () => {
+    const admin = await adminSession();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/authors/merge",
+      headers: admin,
+      payload: { from: ["Frank Herbert", "Herbert, Frank", "HERBERT Frank"], into: "Frank Herbert" },
+    });
+
+    expect(response.json()).toEqual({ into: "Frank Herbert", changedBooks: 2 });
+    expect(await authorFacets(admin)).toEqual([
+      ["Brian Herbert", 1],
+      ["Frank Herbert", 3],
+    ]);
+    await reindexEverything();
+    expect(await authorFacets(admin)).toEqual([
+      ["Brian Herbert", 1],
+      ["Frank Herbert", 3],
+    ]);
+    expect((await activityEntries(admin, "action=authors_merged"))[0]?.details).toMatchObject({ into: "Frank Herbert", changedBooks: 2 });
+  });
+
+  it("renames an author when the target name is new", async () => {
+    const admin = await adminSession();
+
+    await app.inject({ method: "POST", url: "/api/admin/authors/merge", headers: admin, payload: { from: ["Brian Herbert"], into: "Brian P. Herbert" } });
+
+    expect((await authorFacets(admin)).map(([name]) => name)).toContain("Brian P. Herbert");
+    expect((await authorFacets(admin)).map(([name]) => name)).not.toContain("Brian Herbert");
+  });
+});
+
+describe("DELETE /api/admin/books/:id", () => {
+  it("is closed to members", async () => {
+    const response = await app.inject({ method: "DELETE", url: `/api/admin/books/${bookId("Dune")}`, headers: await sessionOf("bob") });
+
+    expect(response.statusCode).toBe(403);
+    expect(bookTitles()).toEqual(["Dune"]);
+  });
+
+  it("moves the file to the local trash when the library has no remote", async () => {
+    const admin = await adminSession();
+    const id = bookId("Dune");
+
+    const response = await app.inject({ method: "DELETE", url: `/api/admin/books/${id}`, headers: admin });
+
+    expect(response.statusCode).toBe(204);
+    expect(bookTitles()).toEqual([]);
+    expect(existsSync(path.join(booksDirectory, "dune.epub"))).toBe(false);
+    expect(existsSync(path.join(workDirectory, "trash/dune.epub"))).toBe(true);
+    expect((await app.inject({ method: "GET", url: "/api/facets", headers: admin })).json()).toMatchObject({ authors: [] });
+    expect((await activityEntries(admin, "action=book_deleted"))[0]).toMatchObject({ bookId: id, details: { title: "Dune", filePath: "dune.epub" } });
+  });
+
+  it("moves the file to the trash folder of the remote, where a sync will not bring it back", async () => {
+    await app.close();
+    rcloneRemote = "mega:Library";
+    await startApp();
+    const admin = await adminSession();
+
+    const response = await app.inject({ method: "DELETE", url: `/api/admin/books/${bookId("Dune")}`, headers: admin });
+
+    expect(response.statusCode).toBe(204);
+    expect(rcloneCalls).toEqual([["rclone", "moveto", "mega:Library/dune.epub", "mega:_corbeille/dune.epub"]]);
+    expect(existsSync(path.join(booksDirectory, "dune.epub"))).toBe(false);
+    expect(bookTitles()).toEqual([]);
+  });
+
+  it("changes nothing when the remote refuses the move", async () => {
+    await app.close();
+    rcloneRemote = "mega:Library";
+    rcloneExitCode = 1;
+    await startApp();
+    const admin = await adminSession();
+
+    const response = await app.inject({ method: "DELETE", url: `/api/admin/books/${bookId("Dune")}`, headers: admin });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toMatchObject({ error: "remote_move_failed", message: expect.stringContaining("quota exceeded") });
+    expect(existsSync(path.join(booksDirectory, "dune.epub"))).toBe(true);
+    expect(bookTitles()).toEqual(["Dune"]);
   });
 });

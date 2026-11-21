@@ -29,6 +29,7 @@ uploads : à sauvegarder si l'on tient aux corrections de métadonnées faites d
 | Variable        | Rôle                                                        | Défaut (image)            |
 |-----------------|-------------------------------------------------------------|---------------------------|
 | `RCLONE_REMOTE` | Source rclone miroirée dans `/books` (seuls les `.epub`)    | vide : pas de synchro     |
+| `RCLONE_TRASH`  | Dossier rclone où vont les livres supprimés                 | `_corbeille` à côté de la bibliothèque |
 | `SYNC_CRON`     | Cron des synchros automatiques, `off` pour désactiver       | `0 4 * * *`               |
 | `SITE_ADDRESS`  | Nom de domaine servi par Caddy (compose)                    | `localhost`               |
 | `ADMIN_USER`, `ADMIN_PASSWORD` | Premier compte admin, lu seulement sans aucun compte | aucun                  |

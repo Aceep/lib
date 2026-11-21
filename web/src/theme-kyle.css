@@ -1,0 +1,196 @@
+/*
+ * Kyle's identity, layered over styles.css: the yellow of the dinosaur for everything that acts, the green of
+ * his crest for "done", a near-black ground so the covers do the talking. Loaded after styles.css, it only
+ * overrides tokens and the few selectors that carried the old copper accent.
+ */
+
+:root {
+  --color-background: #f7f4ee;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fbf9f4;
+  --color-text: #1f1b17;
+  --color-muted: #6b655c;
+  --color-border: #e4dfd5;
+  /* Fills: Kyle's yellow with dark ink on it. Text links need a darker amber to stay readable on cream. */
+  --color-accent: #ffd23f;
+  --color-accent-soft: #fff1bf;
+  --color-accent-text: #1b1500;
+  --color-link: #8a6200;
+  --color-ok: #4f8a1e;
+  --color-focus: #c99a00;
+  --color-placeholder: #efe9dc;
+  --color-skeleton: #ece7dc;
+  --color-kyle-green: #8dbf3a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #121110;
+    --color-surface: #1c1a17;
+    --color-surface-raised: #27241f;
+    --color-text: #f5f1e8;
+    --color-muted: #a8a197;
+    --color-border: #2f2b26;
+    --color-accent: #ffd23f;
+    --color-accent-soft: #3a3214;
+    --color-accent-text: #1b1500;
+    --color-link: #ffd23f;
+    --color-ok: #8dbf3a;
+    --color-focus: #ffd23f;
+    --color-placeholder: #27241f;
+    --color-skeleton: #26231f;
+    --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.55);
+  }
+}
+
+/* Links and link-like controls read in the link color; yellow stays for fills. */
+a,
+.link-button,
+.nav-link:hover,
+.nav-link.active,
+.shelf-link,
+.chip {
+  color: var(--color-link);
+}
+
+.chip {
+  background: var(--color-accent-soft);
+}
+
+.sync-dot.is-running {
+  background: var(--color-accent);
+}
+
+/* Logotype: KYLE in heavy capitals, the crest sitting on the K. */
+
+.logo {
+  position: relative;
+  display: inline-block;
+  padding-top: 0.42em;
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--color-text);
+}
+
+.logo-crest {
+  position: absolute;
+  left: 0.05em;
+  top: 0;
+  width: 0.95em;
+  height: 0.43em;
+  fill: var(--color-kyle-green);
+}
+
+.app-title .logo {
+  font-size: 1.35rem;
+}
+
+.login-form .logo {
+  font-size: 3rem;
+  align-self: center;
+}
+
+/* Kyle speaking */
+
+.kyle-says {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  max-width: 34rem;
+}
+
+.kyle-says-figure {
+  flex: none;
+  width: 3.6rem;
+  height: auto;
+  filter: drop-shadow(0 6px 12px rgb(0 0 0 / 0.25));
+}
+
+.kyle-says.is-small .kyle-says-figure {
+  width: 2.4rem;
+}
+
+.kyle-says.is-large .kyle-says-figure {
+  width: 6rem;
+}
+
+.kyle-says.is-mirrored .kyle-says-figure {
+  transform: scaleX(-1);
+}
+
+.kyle-says.is-sleepy .kyle-says-figure {
+  transform: rotate(-12deg);
+  opacity: 0.85;
+}
+
+.kyle-says-bubble {
+  margin: 0 0 0.6rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 16px 16px 16px 4px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.kyle-says-bubble strong {
+  color: var(--color-link);
+}
+
+/* Empty states hand the floor to Kyle, centered. */
+
+.kyle-empty {
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+}
+
+/* Login: Kyle under a yellow halo, the wordmark, then the form. */
+
+.login-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.login-hero::before {
+  content: "";
+  position: absolute;
+  top: -8rem;
+  left: 50%;
+  width: 30rem;
+  height: 30rem;
+  margin-left: -15rem;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 210 63 / 0.18), rgb(255 210 63 / 0));
+  pointer-events: none;
+}
+
+.login-form {
+  position: relative;
+}
+
+.login-figure {
+  width: 9rem;
+  height: auto;
+  filter: drop-shadow(0 18px 30px rgb(0 0 0 / 0.35));
+}
+
+.login-tagline {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+/* Upload page: the drop zone is where Kyle waits for books. */
+
+.upload-drop .kyle-says {
+  max-width: 24rem;
+  margin: 0 auto 0.25rem;
+  text-align: left;
+}

@@ -123,7 +123,7 @@ describe("GET /api/books", () => {
     const response = await app.inject({ method: "GET", url: "/api/books?q=omens" });
 
     expect(response.json().items).toEqual([
-      { id: bookIdByTitle("Good Omens"), title: "Good Omens", authors: ["Terry Pratchett", "Neil Gaiman"], language: "en", hasCover: false },
+      { id: bookIdByTitle("Good Omens"), title: "Good Omens", authors: ["Terry Pratchett", "Neil Gaiman"], language: "en", series: null, seriesIndex: null, hasCover: false },
     ]);
   });
 

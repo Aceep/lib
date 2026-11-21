@@ -152,9 +152,26 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
 - Front : `/admin` (onglets Activité, Envois à valider, Santé, Utilisateurs), pastille du nombre d'envois en attente,
   « Mes envois » sur la page d'ajout des membres.
 - Non fait : aucune vérification visuelle dans un navigateur, `docker compose up` avec Caddy jamais lancé.
-- Suite du plan, dans l'ordre : séries (`calibre:series`, `belongs-to-collection`) + édition des fiches + fusion
-  d'auteurs (les 55 groupes ci-dessus) + suppression vers `mega:_corbeille` ; livres manquants (Open Library + Wikidata,
-  auteurs suivis) ; demandes de livres ; tableau de bord.
+
+## Panneau admin — séries, édition, fusion d'auteurs, suppression (fait le 2026-11-21)
+
+- **Séries** (migration 7 : `books.series`, `series_index`, `series_checked`) : lues dans `calibre:series` /
+  `calibre:series_index` et `belongs-to-collection` / `group-position` (`server/src/epub/opf.ts`). Les livres déjà
+  indexés sont rattrapés à la synchro suivante sans toucher au reste de leur fiche. `GET /api/books?series=…` liste les
+  tomes dans l'ordre ; le nom de la série est cherchable. Sur la vraie base : 59 livres sur 702 ont une série (41 séries),
+  avec du bruit (« L'assasin royal » / « L'assassin royal », « . », « Epub commercial ») à corriger à la main.
+- **Corrections durables** (table `book_overrides`, clé = `content_hash`) : `PATCH /api/admin/books/:id` (titre, auteurs,
+  série, tome) écrit la correction et met la fiche à jour ; `saveBook` la réapplique à chaque indexation, même si le
+  fichier a bougé. Les corrections faites à l'upload y sont aussi enregistrées (la limite notée plus haut est levée).
+  Le fichier EPUB et son nom ne sont pas modifiés.
+- **Fusion d'auteurs** : `POST /api/admin/authors/merge` `{from, into}` = une correction par livre concerné ; boutons
+  « Tout regrouper sous » dans Admin → Santé. `into` peut être un nouveau nom (renommage).
+- **Suppression** : `DELETE /api/admin/books/:id` déplace le fichier vers `RCLONE_TRASH` (défaut : `_corbeille` à côté de
+  la bibliothèque, soit `mega:_corbeille`) par `rclone moveto`, puis retire la copie locale et la fiche. Sans remote, le
+  fichier va dans `DATA_DIR/trash/`. Si rclone échoue, rien ne change. Jamais lancé contre le vrai MEGA.
+- Front : fiche livre (série, étagère « Série », panneau « Administration » pour les admins), filtre `?series=`.
+- Suite du plan, dans l'ordre : livres manquants (Open Library + Wikidata, auteurs suivis) ; demandes de livres ;
+  tableau de bord.
 
 ## Plus tard
 

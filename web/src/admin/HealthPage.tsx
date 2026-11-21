@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
-import { fetchLibraryHealth } from "../api/client.js";
+import { fetchLibraryHealth, mergeAuthors } from "../api/client.js";
 import type { MissingField, SyncRun } from "../api/types.js";
 import { authorsLabel, countLabel, dateTimeLabel, fileSizeLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
@@ -35,9 +35,59 @@ function syncSummary(run: SyncRun): string {
   return parts.join(", ");
 }
 
-export function HealthPage() {
+type AuthorGroup = { name: string; bookCount: number }[];
+
+/** One click per group: every spelling becomes the chosen one, on all the books concerned. */
+function SimilarAuthorsGroup({ names, onMerged }: { names: AuthorGroup; onMerged: (message: string) => void }) {
+  const [isBusy, setIsBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  async function handleMerge(into: string) {
+    setIsBusy(true);
+    setErrorMessage(null);
+    try {
+      const result = await mergeAuthors(
+        names.map((author) => author.name),
+        into,
+      );
+      onMerged(`${countLabel(result.changedBooks, "livre")} désormais sous « ${result.into} ».`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setIsBusy(false);
+    }
+  }
+
+  return (
+    <li>
+      <span className="record-main">
+        {names.map((author, index) => (
+          <span key={author.name}>
+            {index > 0 ? " · " : null}
+            <Link to={`/?${new URLSearchParams({ author: author.name })}`}>{author.name}</Link> ({author.bookCount})
+          </span>
+        ))}
+      </span>
+      <span className="merge-actions">
+        <span className="record-secondary">Tout regrouper sous :</span>
+        {names.map((author) => (
+          <button key={author.name} type="button" disabled={isBusy} onClick={() => void handleMerge(author.name)}>
+            {author.name}
+          </button>
+        ))}
+      </span>
+      {errorMessage ? (
+        <p className="error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
+    </li>
+  );
+}
+
+export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void }) {
   useDocumentTitle("Santé de la bibliothèque");
   const health = useAsync((signal) => fetchLibraryHealth(signal), []);
+  const [mergeMessage, setMergeMessage] = useState<string | null>(null);
 
   if (health.status === "error") {
     return (
@@ -72,18 +122,22 @@ export function HealthPage() {
       </Section>
 
       <Section title="Auteurs en double probable" count={similarAuthors.length} emptyText="Aucun nom d'auteur ne ressemble à un autre.">
+        {mergeMessage ? (
+          <p className="form-success" role="status">
+            {mergeMessage}
+          </p>
+        ) : null}
         <ul className="record-list">
           {similarAuthors.map((group) => (
-            <li key={group.names.map((author) => author.name).join("|")}>
-              <span className="record-main">
-                {group.names.map((author, index) => (
-                  <span key={author.name}>
-                    {index > 0 ? " · " : null}
-                    <Link to={`/?${new URLSearchParams({ author: author.name })}`}>{author.name}</Link> ({author.bookCount})
-                  </span>
-                ))}
-              </span>
-            </li>
+            <SimilarAuthorsGroup
+              key={group.names.map((author) => author.name).join("|")}
+              names={group.names}
+              onMerged={(message) => {
+                setMergeMessage(message);
+                health.reload();
+                onLibraryChanged();
+              }}
+            />
           ))}
         </ul>
       </Section>

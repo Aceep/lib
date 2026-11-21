@@ -128,6 +128,28 @@ const MIGRATIONS: string[] = [
   CREATE INDEX upload_submissions_user ON upload_submissions (user_id);
   CREATE INDEX upload_submissions_status ON upload_submissions (status);
   `,
+  `
+  ALTER TABLE books ADD COLUMN series TEXT;
+  ALTER TABLE books ADD COLUMN series_index REAL;
+  -- 0 for books indexed before series were read: the indexer fills them in without re-reading anything else,
+  -- so titles and authors corrected at upload time are left alone.
+  ALTER TABLE books ADD COLUMN series_checked INTEGER NOT NULL DEFAULT 0;
+  CREATE INDEX books_series ON books (series);
+
+  -- Corrections made in the app. Keyed by the file's hash, not the book id: a rebuilt index or a moved
+  -- file still finds its correction. A NULL column means "as read from the file".
+  CREATE TABLE book_overrides (
+    content_hash TEXT PRIMARY KEY,
+    title TEXT,
+    authors_json TEXT,
+    -- has_series tells "no series" (1, series NULL) apart from "not corrected" (0).
+    has_series INTEGER NOT NULL DEFAULT 0,
+    series TEXT,
+    series_index REAL,
+    updated_at TEXT NOT NULL,
+    updated_by TEXT
+  );
+  `,
 ];
 
 function migrate(database: LibraryDatabase): void {

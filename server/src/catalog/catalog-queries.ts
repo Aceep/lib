@@ -6,6 +6,7 @@ export type BookListFilters = {
   query: string | null;
   author: string | null;
   language: string | null;
+  series: string | null;
   sort: BookSort;
   page: number;
   pageSize: number;
@@ -16,6 +17,8 @@ export type BookSummary = {
   title: string;
   authors: string[];
   language: string | null;
+  series: string | null;
+  seriesIndex: number | null;
   hasCover: boolean;
 };
 
@@ -43,6 +46,8 @@ type BookRow = {
   title: string;
   authors_json: string;
   language: string | null;
+  series: string | null;
+  series_index: number | null;
   cover_file: string | null;
 };
 
@@ -77,6 +82,8 @@ function toSummary(row: BookRow): BookSummary {
     title: row.title,
     authors: JSON.parse(row.authors_json) as string[],
     language: row.language,
+    series: row.series,
+    seriesIndex: row.series_index,
     hasCover: row.cover_file !== null,
   };
 }
@@ -92,11 +99,14 @@ function orderByClause(sort: BookSort, hasFullTextQuery: boolean): string {
   return "ORDER BY books.sort_title, books.id";
 }
 
+// Inside one series the reading order is the useful one; volumes without a number go last.
+const SERIES_ORDER = "ORDER BY books.series_index IS NULL, books.series_index, books.sort_title, books.id";
+
 export type CatalogQueries = ReturnType<typeof createCatalogQueries>;
 
 export function createCatalogQueries(database: LibraryDatabase) {
   const bookDetailsStatement = database.prepare<[number], BookDetailsRow>(
-    `SELECT books.id, books.title, books.language, books.cover_file, books.description, books.file_size,
+    `SELECT books.id, books.title, books.language, books.series, books.series_index, books.cover_file, books.description, books.file_size,
             books.added_at, books.updated_at, ${AUTHORS_JSON_COLUMN}
      FROM books WHERE books.id = ?`,
   );
@@ -137,6 +147,11 @@ export function createCatalogQueries(database: LibraryDatabase) {
         parameters.language = filters.language;
       }
 
+      if (filters.series) {
+        conditions.push("books.series = @series COLLATE NOCASE");
+        parameters.series = filters.series;
+      }
+
       const fromClause = fullTextQuery ? "FROM books JOIN books_fts ON books_fts.rowid = books.id" : "FROM books";
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
@@ -145,9 +160,9 @@ export function createCatalogQueries(database: LibraryDatabase) {
         .get(parameters);
       const rows = database
         .prepare<Record<string, string | number>, BookRow>(
-          `SELECT books.id, books.title, books.language, books.cover_file, ${AUTHORS_JSON_COLUMN}
+          `SELECT books.id, books.title, books.language, books.series, books.series_index, books.cover_file, ${AUTHORS_JSON_COLUMN}
            ${fromClause} ${whereClause}
-           ${orderByClause(filters.sort, fullTextQuery !== null)}
+           ${filters.series && filters.sort !== "recent" ? SERIES_ORDER : orderByClause(filters.sort, fullTextQuery !== null)}
            LIMIT @limit OFFSET @offset`,
         )
         .all({ ...parameters, limit: filters.pageSize, offset: (filters.page - 1) * filters.pageSize });

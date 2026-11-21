@@ -12,6 +12,10 @@ export type ServerConfig = {
   webDirectory: string;
   /** rclone source to mirror into the books directory, e.g. "mega:Livres". Null skips the pull. */
   rcloneRemote: string | null;
+  /** rclone folder deleted books are moved to. Null when there is no remote. */
+  rcloneTrash: string | null;
+  /** Where deleted books go when the library has no remote. */
+  trashDirectory: string;
   /** Cron pattern for automatic syncs, null when disabled. */
   syncCron: string | null;
   /** True when a reverse proxy sits in front: client address and protocol are then read from its headers. */
@@ -64,8 +68,19 @@ function parseInitialAdmin(environment: NodeJS.ProcessEnv): ServerConfig["initia
   return username && password ? { username, password } : null;
 }
 
+/** "mega:Library" -> "mega:_corbeille": next to the library, where a sync of the library never looks. */
+function defaultTrashRemote(remote: string): string {
+  const separator = remote.indexOf(":");
+  if (separator === -1) {
+    return path.posix.join(path.posix.dirname(remote), "_corbeille");
+  }
+  const parent = path.posix.dirname(remote.slice(separator + 1));
+  return `${remote.slice(0, separator + 1)}${parent === "." || parent === "/" ? "" : `${parent}/`}_corbeille`;
+}
+
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ServerConfig {
   const dataDirectory = directoryFromEnvironment(environment, "DATA_DIR", "data");
+  const rcloneRemote = environment.RCLONE_REMOTE?.trim() || null;
   return {
     port: parsePort(environment.PORT),
     // Local-only by default: exposing the catalog is an explicit decision.
@@ -76,7 +91,9 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
     coversDirectory: path.join(dataDirectory, "covers"),
     uploadsDirectory: path.join(dataDirectory, "uploads"),
     webDirectory: directoryFromEnvironment(environment, "WEB_DIR", path.join(import.meta.dirname, "../../web/dist")),
-    rcloneRemote: environment.RCLONE_REMOTE?.trim() || null,
+    rcloneRemote,
+    rcloneTrash: rcloneRemote ? environment.RCLONE_TRASH?.trim() || defaultTrashRemote(rcloneRemote) : null,
+    trashDirectory: path.join(dataDirectory, "trash"),
     syncCron: parseSyncCron(environment.SYNC_CRON),
     trustProxy: ["1", "true"].includes(environment.TRUST_PROXY?.trim().toLowerCase() ?? ""),
     activityRetentionDays: parseRetentionDays(environment.ACTIVITY_RETENTION_DAYS),

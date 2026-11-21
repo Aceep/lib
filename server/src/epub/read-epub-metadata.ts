@@ -12,6 +12,8 @@ export type EpubMetadata = {
   authors: string[];
   language: string | null;
   description: string | null;
+  series: string | null;
+  seriesIndex: number | null;
   cover: EpubCover | null;
 };
 
@@ -60,6 +62,8 @@ export async function readEpubMetadata(filePath: string): Promise<EpubMetadata> 
       authors: opf.authors,
       language: opf.language,
       description: opf.description,
+      series: opf.series,
+      seriesIndex: opf.seriesIndex,
       cover: coverData && opf.coverMediaType ? { data: coverData, mediaType: opf.coverMediaType } : null,
     };
   } finally {

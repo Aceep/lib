@@ -5,7 +5,7 @@ export const PAGE_SIZE = 24;
 
 const SORTS: readonly BookSort[] = ["relevance", "title", "recent"];
 
-export type CatalogParams = Omit<BookListParams, "pageSize">;
+export type CatalogParams = Omit<BookListParams, "pageSize" | "series"> & { series: string };
 
 export function toBookSort(value: string | null): BookSort {
   return SORTS.find((sort) => sort === value) ?? "relevance";
@@ -18,6 +18,7 @@ export function readCatalogParams(search: URLSearchParams): CatalogParams {
     query: search.get("q")?.trim() ?? "",
     author: search.get("author")?.trim() ?? "",
     language: search.get("language")?.trim() ?? "",
+    series: search.get("series")?.trim() ?? "",
     sort: toBookSort(search.get("sort")),
     page: Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1,
   };
@@ -34,6 +35,9 @@ export function writeCatalogParams(params: CatalogParams): URLSearchParams {
   }
   if (params.language) {
     search.set("language", params.language);
+  }
+  if (params.series) {
+    search.set("series", params.series);
   }
   if (params.sort !== "relevance") {
     search.set("sort", params.sort);

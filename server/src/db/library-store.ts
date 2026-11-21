@@ -11,6 +11,8 @@ export type IndexedFile = FileFingerprint & {
   bookId: number;
   coverFile: string | null;
   contentHash: string | null;
+  /** False for a book indexed before series were read from the files. */
+  seriesChecked: boolean;
 };
 
 export type BookRecord = FileFingerprint & {
@@ -19,6 +21,42 @@ export type BookRecord = FileFingerprint & {
   authors: string[];
   language: string | null;
   description: string | null;
+  series: string | null;
+  seriesIndex: number | null;
+};
+
+/** What an admin may correct on a book. */
+export type BookCorrection = {
+  title: string;
+  authors: string[];
+  series: string | null;
+  seriesIndex: number | null;
+};
+
+/** A book as stored, with what is needed to act on its file. */
+export type StoredBook = BookCorrection & {
+  bookId: number;
+  filePath: string;
+  contentHash: string | null;
+  coverFile: string | null;
+};
+
+type OverrideRow = {
+  title: string | null;
+  authors_json: string | null;
+  has_series: number;
+  series: string | null;
+  series_index: number | null;
+};
+
+type StoredBookRow = {
+  id: number;
+  file_path: string;
+  content_hash: string | null;
+  cover_file: string | null;
+  title: string;
+  series: string | null;
+  series_index: number | null;
 };
 
 type IndexedFileRow = {
@@ -28,6 +66,7 @@ type IndexedFileRow = {
   file_mtime_ms: number;
   cover_file: string | null;
   content_hash: string | null;
+  series_checked: number;
 };
 
 type InvalidFileRow = {
@@ -54,7 +93,7 @@ export type LibraryStore = ReturnType<typeof createLibraryStore>;
 export function createLibraryStore(database: LibraryDatabase) {
   const statements = {
     listIndexedFiles: database.prepare<[], IndexedFileRow>(
-      "SELECT id, file_path, file_size, file_mtime_ms, cover_file, content_hash FROM books",
+      "SELECT id, file_path, file_size, file_mtime_ms, cover_file, content_hash, series_checked FROM books",
     ),
     setContentHash: database.prepare<[string, number]>("UPDATE books SET content_hash = ? WHERE id = ?"),
     findByContentHash: database.prepare<[string], DuplicateRow>(
@@ -80,12 +119,14 @@ export function createLibraryStore(database: LibraryDatabase) {
         sortTitle: string;
         language: string | null;
         description: string | null;
+        series: string | null;
+        seriesIndex: number | null;
         now: string;
       },
       { id: number }
     >(
-      `INSERT INTO books (file_path, file_size, file_mtime_ms, content_hash, title, sort_title, language, description, added_at, updated_at)
-       VALUES (@filePath, @fileSize, @fileMtimeMs, @contentHash, @title, @sortTitle, @language, @description, @now, @now)
+      `INSERT INTO books (file_path, file_size, file_mtime_ms, content_hash, title, sort_title, language, description, series, series_index, series_checked, added_at, updated_at)
+       VALUES (@filePath, @fileSize, @fileMtimeMs, @contentHash, @title, @sortTitle, @language, @description, @series, @seriesIndex, 1, @now, @now)
        RETURNING id`,
     ),
     updateBook: database.prepare<{
@@ -97,10 +138,13 @@ export function createLibraryStore(database: LibraryDatabase) {
       sortTitle: string;
       language: string | null;
       description: string | null;
+      series: string | null;
+      seriesIndex: number | null;
       now: string;
     }>(
       `UPDATE books SET file_size = @fileSize, file_mtime_ms = @fileMtimeMs, content_hash = @contentHash, title = @title,
-         sort_title = @sortTitle, language = @language, description = @description, updated_at = @now
+         sort_title = @sortTitle, language = @language, description = @description, series = @series,
+         series_index = @seriesIndex, series_checked = 1, updated_at = @now
        WHERE id = @bookId`,
     ),
     setCoverFile: database.prepare<[string | null, number]>("UPDATE books SET cover_file = ? WHERE id = ?"),
@@ -127,7 +171,52 @@ export function createLibraryStore(database: LibraryDatabase) {
          error = excluded.error, detected_at = excluded.detected_at`,
     ),
     deleteInvalidFile: database.prepare<[string]>("DELETE FROM invalid_files WHERE file_path = ?"),
+    getOverride: database.prepare<[string], OverrideRow>(
+      "SELECT title, authors_json, has_series, series, series_index FROM book_overrides WHERE content_hash = ?",
+    ),
+    upsertOverride: database.prepare<{
+      contentHash: string;
+      title: string;
+      authorsJson: string;
+      series: string | null;
+      seriesIndex: number | null;
+      now: string;
+      updatedBy: string | null;
+    }>(
+      `INSERT INTO book_overrides (content_hash, title, authors_json, has_series, series, series_index, updated_at, updated_by)
+       VALUES (@contentHash, @title, @authorsJson, 1, @series, @seriesIndex, @now, @updatedBy)
+       ON CONFLICT (content_hash) DO UPDATE SET title = excluded.title, authors_json = excluded.authors_json, has_series = 1,
+         series = excluded.series, series_index = excluded.series_index, updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
+    ),
+    setSeries: database.prepare<[string | null, number | null, number]>(
+      "UPDATE books SET series = ?, series_index = ?, series_checked = 1 WHERE id = ?",
+    ),
+    getStoredBook: database.prepare<[number], StoredBookRow>(
+      "SELECT id, file_path, content_hash, cover_file, title, series, series_index FROM books WHERE id = ?",
+    ),
+    getSearchDescription: database.prepare<[number], { description: string | null }>("SELECT description FROM books WHERE id = ?"),
+    correctBook: database.prepare<{ bookId: number; title: string; sortTitle: string; series: string | null; seriesIndex: number | null; now: string }>(
+      "UPDATE books SET title = @title, sort_title = @sortTitle, series = @series, series_index = @seriesIndex, updated_at = @now WHERE id = @bookId",
+    ),
+    listBookIdsByAuthor: database.prepare<[string], { book_id: number }>(
+      "SELECT book_authors.book_id FROM book_authors JOIN authors ON authors.id = book_authors.author_id WHERE authors.name = ?",
+    ),
   };
+
+  /** The record as the catalog should show it: what the file says, unless an admin corrected it. */
+  function withOverride(record: BookRecord): BookRecord {
+    const override = statements.getOverride.get(record.contentHash);
+    if (!override) {
+      return record;
+    }
+    return {
+      ...record,
+      title: override.title ?? record.title,
+      authors: override.authors_json ? (JSON.parse(override.authors_json) as string[]) : record.authors,
+      series: override.has_series ? override.series : record.series,
+      seriesIndex: override.has_series ? override.series_index : record.seriesIndex,
+    };
+  }
 
   function toExistingBook(row: DuplicateRow): ExistingBook {
     return {
@@ -138,7 +227,7 @@ export function createLibraryStore(database: LibraryDatabase) {
     };
   }
 
-  function replaceAuthorsAndSearchEntry(bookId: number, record: BookRecord): void {
+  function replaceAuthorsAndSearchEntry(bookId: number, record: Pick<BookRecord, "title" | "authors" | "description" | "series">): void {
     statements.deleteBookAuthors.run(bookId);
     record.authors.forEach((name, position) => {
       const author = statements.upsertAuthor.get(name, toSortKey(name));
@@ -147,7 +236,9 @@ export function createLibraryStore(database: LibraryDatabase) {
       }
     });
     statements.deleteSearchEntry.run(bookId);
-    statements.insertSearchEntry.run(bookId, record.title, record.authors.join(" "), record.description ?? "");
+    // The series goes with the title so that searching "Fondation" finds every volume, whatever each is called.
+    const searchableTitle = record.series ? `${record.title} ${record.series}` : record.title;
+    statements.insertSearchEntry.run(bookId, searchableTitle, record.authors.join(" "), record.description ?? "");
   }
 
   return {
@@ -159,8 +250,23 @@ export function createLibraryStore(database: LibraryDatabase) {
         fileMtimeMs: row.file_mtime_ms,
         coverFile: row.cover_file,
         contentHash: row.content_hash,
+        seriesChecked: row.series_checked === 1,
       }));
     },
+
+    /** Fills in the series of a book indexed before series were read, leaving everything else as it is. */
+    backfillSeries: database.transaction((bookId: number, series: string | null, seriesIndex: number | null): void => {
+      statements.setSeries.run(series, seriesIndex, bookId);
+      const row = statements.getStoredBook.get(bookId);
+      if (row) {
+        replaceAuthorsAndSearchEntry(bookId, {
+          title: row.title,
+          authors: statements.listAuthorNames.all(bookId).map((author) => author.name),
+          description: statements.getSearchDescription.get(bookId)?.description ?? null,
+          series,
+        });
+      }
+    }),
 
     setContentHash(bookId: number, contentHash: string): void {
       statements.setContentHash.run(contentHash, bookId);
@@ -190,7 +296,8 @@ export function createLibraryStore(database: LibraryDatabase) {
     },
 
     /** Inserts the book, or updates it when `existingBookId` is given. Returns the book id. */
-    saveBook: database.transaction((record: BookRecord, existingBookId: number | null): number => {
+    saveBook: database.transaction((fileRecord: BookRecord, existingBookId: number | null): number => {
+      const record = withOverride(fileRecord);
       const now = new Date().toISOString();
       const fields = {
         fileSize: record.fileSize,
@@ -200,6 +307,8 @@ export function createLibraryStore(database: LibraryDatabase) {
         sortTitle: toSortKey(record.title),
         language: record.language,
         description: record.description,
+        series: record.series,
+        seriesIndex: record.seriesIndex,
         now,
       };
       let bookId = existingBookId;
@@ -215,6 +324,64 @@ export function createLibraryStore(database: LibraryDatabase) {
       replaceAuthorsAndSearchEntry(bookId, record);
       statements.deleteInvalidFile.run(record.filePath);
       return bookId;
+    }),
+
+    getStoredBook(bookId: number): StoredBook | null {
+      const row = statements.getStoredBook.get(bookId);
+      if (!row) {
+        return null;
+      }
+      return {
+        bookId: row.id,
+        filePath: row.file_path,
+        contentHash: row.content_hash,
+        coverFile: row.cover_file,
+        title: row.title,
+        authors: statements.listAuthorNames.all(row.id).map((author) => author.name),
+        series: row.series,
+        seriesIndex: row.series_index,
+      };
+    },
+
+    listBookIdsByAuthor: (authorName: string): number[] => statements.listBookIdsByAuthor.all(authorName).map((row) => row.book_id),
+
+    /**
+     * Remembers a correction for the file with this hash, so it is applied again whenever that file is indexed.
+     * Does not touch a book already in the catalog: `correctBook` does both.
+     */
+    saveOverride(contentHash: string, correction: BookCorrection, updatedBy: string | null): void {
+      statements.upsertOverride.run({
+        contentHash,
+        title: correction.title,
+        authorsJson: JSON.stringify(correction.authors),
+        series: correction.series,
+        seriesIndex: correction.seriesIndex,
+        now: new Date().toISOString(),
+        updatedBy,
+      });
+    },
+
+    /** Applies a correction to a catalogued book and records it against the file's hash. */
+    correctBook: database.transaction((bookId: number, contentHash: string, correction: BookCorrection, updatedBy: string | null): void => {
+      const now = new Date().toISOString();
+      statements.upsertOverride.run({
+        contentHash,
+        title: correction.title,
+        authorsJson: JSON.stringify(correction.authors),
+        series: correction.series,
+        seriesIndex: correction.seriesIndex,
+        now,
+        updatedBy,
+      });
+      statements.correctBook.run({
+        bookId,
+        title: correction.title,
+        sortTitle: toSortKey(correction.title),
+        series: correction.series,
+        seriesIndex: correction.seriesIndex,
+        now,
+      });
+      replaceAuthorsAndSearchEntry(bookId, { ...correction, description: statements.getSearchDescription.get(bookId)?.description ?? null });
     }),
 
     setCoverFile(bookId: number, coverFile: string | null): void {

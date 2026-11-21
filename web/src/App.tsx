@@ -159,7 +159,7 @@ function SignedInApp({ user, onLoggedOut }: { user: User; onLoggedOut: () => voi
       </header>
       <Routes>
         <Route path="/" element={<CatalogPage libraryVersion={libraryVersion} />} />
-        <Route path="/books/:bookId" element={<BookPage />} />
+        <Route path="/books/:bookId" element={<BookPage user={user} onLibraryChanged={handleLibraryChanged} />} />
         <Route path="/authors" element={<AuthorsPage libraryVersion={libraryVersion} />} />
         <Route path="/upload" element={<UploadPage user={user} onLibraryChanged={handleLibraryChanged} />} />
         <Route path="/account" element={<AccountPage user={user} onLoggedOut={onLoggedOut} />} />
@@ -177,7 +177,7 @@ function SignedInApp({ user, onLoggedOut }: { user: User; onLoggedOut: () => voi
                 />
               }
             />
-            <Route path="health" element={<HealthPage />} />
+            <Route path="health" element={<HealthPage onLibraryChanged={handleLibraryChanged} />} />
             <Route path="users" element={<UsersPage currentUser={user} />} />
           </Route>
         ) : null}

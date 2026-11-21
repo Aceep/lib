@@ -99,6 +99,8 @@ type PendingUpload = {
   contentHash: string;
   stagedAt: number;
   owner: Pick<UploadActor, "id" | "username">;
+  /** True once title or authors differ from the file's: the correction must then outlive a re-index. */
+  corrected: boolean;
 };
 
 // A preview nobody confirmed is forgotten after an hour; the browser tab was probably closed.
@@ -190,7 +192,8 @@ export async function createUploadService(options: UploadServiceOptions) {
   for (const row of statements.listPendingRows.all()) {
     const stagedPath = stagedPathOf(row.id);
     try {
-      const metadata = { ...(await readEpubMetadata(stagedPath)), title: row.title, authors: JSON.parse(row.authors_json) as string[] };
+      const fromFile = await readEpubMetadata(stagedPath);
+      const metadata = { ...fromFile, title: row.title, authors: JSON.parse(row.authors_json) as string[] };
       const upload: PendingUpload = {
         // Filled in just below, once the upload exists to be described.
         preview: null as unknown as UploadPreview,
@@ -199,6 +202,7 @@ export async function createUploadService(options: UploadServiceOptions) {
         contentHash: row.content_hash,
         stagedAt: Date.parse(row.submitted_at),
         owner: { id: row.user_id ?? 0, username: row.username },
+        corrected: fromFile.title !== metadata.title || fromFile.authors.join("\n") !== metadata.authors.join("\n"),
       };
       upload.preview = describe(upload, { id: row.id, originalName: row.original_name, fileSize: row.file_size, submittedAt: row.submitted_at });
       pending.set(row.id, upload);
@@ -316,7 +320,7 @@ export async function createUploadService(options: UploadServiceOptions) {
         const { fileSize } = await fingerprintFile(uploadsDirectory, stagedPath);
         const owner = { id: actor.id, username: actor.username };
         const preview = describe({ metadata, contentHash, owner }, { id, originalName, fileSize, submittedAt: null });
-        pending.set(id, { preview, stagedPath, metadata, contentHash, stagedAt: Date.now(), owner });
+        pending.set(id, { preview, stagedPath, metadata, contentHash, stagedAt: Date.now(), owner, corrected: false });
         return preview;
       } catch (error) {
         await rm(stagedPath, { force: true });
@@ -336,6 +340,7 @@ export async function createUploadService(options: UploadServiceOptions) {
         throw new UploadError(400, "invalid_metadata", "The title cannot be empty");
       }
       upload.metadata = { ...upload.metadata, title, authors };
+      upload.corrected = true;
       upload.preview = describe(upload, upload.preview);
       statements.updateSubmissionMetadata.run(title, JSON.stringify(authors), id);
       return upload.preview;
@@ -437,6 +442,10 @@ export async function createUploadService(options: UploadServiceOptions) {
         }
       }
 
+      if (upload.corrected) {
+        const { title, authors, series, seriesIndex } = upload.metadata;
+        store.saveOverride(upload.contentHash, { title, authors, series, seriesIndex }, actor.username);
+      }
       const file = await fingerprintFile(booksDirectory, absoluteTarget);
       const bookId = await indexFile({
         store,

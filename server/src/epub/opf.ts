@@ -6,6 +6,9 @@ export type OpfMetadata = {
   authors: string[];
   language: string | null;
   description: string | null;
+  series: string | null;
+  /** Position in the series; fractional for the odd "tome 1.5" novella. */
+  seriesIndex: number | null;
   coverPath: string | null;
   coverMediaType: string | null;
 };
@@ -163,6 +166,35 @@ function findCoverItem(metadata: XmlNode | null, manifestItems: unknown[]): unkn
   );
 }
 
+/**
+ * Calibre writes <meta name="calibre:series" content="…"/> with calibre:series_index next to it; EPUB3 has
+ * <meta property="belongs-to-collection" id="c">…</meta> refined by <meta refines="#c" property="group-position">.
+ */
+function findSeries(metadata: XmlNode | null): { series: string | null; seriesIndex: number | null } {
+  const metas = childNodes(metadata, "meta");
+  const toIndex = (raw: string | null): number | null => {
+    const value = raw === null ? Number.NaN : Number(raw.replace(",", "."));
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  };
+  const named = (name: string) => attribute(metas.find((meta) => attribute(meta, "name") === name), "content");
+
+  const calibreSeries = named("calibre:series")?.trim();
+  if (calibreSeries) {
+    return { series: decodeEntities(calibreSeries), seriesIndex: toIndex(named("calibre:series_index")) };
+  }
+
+  const collection = metas.find((meta) => attribute(meta, "property") === "belongs-to-collection" && textContent(meta));
+  const collectionName = textContent(collection);
+  if (!collectionName) {
+    return { series: null, seriesIndex: null };
+  }
+  const collectionId = attribute(collection, "id");
+  const position = collectionId
+    ? metas.find((meta) => attribute(meta, "property") === "group-position" && attribute(meta, "refines") === `#${collectionId}`)
+    : undefined;
+  return { series: decodeEntities(collectionName), seriesIndex: toIndex(textContent(position)) };
+}
+
 export function parseContainer(containerXml: string): string | null {
   const document: unknown = xmlParser.parse(containerXml);
   const rootfiles = childNodes(childNode(childNode(document, "container"), "rootfiles"), "rootfile");
@@ -187,6 +219,7 @@ export function parseOpf(opfXml: string, opfPath: string): OpfMetadata {
     authors: uniqueAuthors(childNodes(metadata, "creator")),
     language: normalizeLanguage(firstText(childNodes(metadata, "language"))),
     description: description ? toPlainText(description) || null : null,
+    ...findSeries(metadata),
     coverPath: coverHref ? resolveHref(opfPath, coverHref) : null,
     coverMediaType: attribute(coverItem, "media-type"),
   };

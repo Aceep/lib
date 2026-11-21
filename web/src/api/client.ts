@@ -1,5 +1,6 @@
 import type {
   ActivityAction,
+  BookCorrection,
   ActivityPage,
   LibraryHealth,
   UploadSubmission,
@@ -87,6 +88,8 @@ export type BookListParams = {
   query: string;
   author: string;
   language: string;
+  /** Exact series name; the volumes then come in reading order. */
+  series?: string;
   sort: BookSort;
   page: number;
   pageSize: number;
@@ -97,6 +100,7 @@ export function fetchBooks(params: BookListParams, signal?: AbortSignal): Promis
   if (params.query) search.set("q", params.query);
   if (params.author) search.set("author", params.author);
   if (params.language) search.set("language", params.language);
+  if (params.series) search.set("series", params.series);
   return requestJson(`/api/books?${search}`, { signal: signal ?? null });
 }
 
@@ -165,6 +169,20 @@ export function fetchActivity(params: ActivityParams, signal?: AbortSignal): Pro
   if (params.action) search.set("action", params.action);
   if (params.username) search.set("username", params.username);
   return requestJson(`/api/admin/activity?${search}`, { signal: signal ?? null });
+}
+
+/** Changes what the catalog shows for a book; the EPUB file itself is left alone. */
+export function correctBook(bookId: number, correction: BookCorrection): Promise<BookDetails> {
+  return requestJson(`/api/admin/books/${bookId}`, jsonBody("PATCH", correction));
+}
+
+/** Moves the book's file to the trash folder and takes it out of the catalog. */
+export async function deleteBook(bookId: number): Promise<void> {
+  await request(`/api/admin/books/${bookId}`, { method: "DELETE" });
+}
+
+export function mergeAuthors(from: string[], into: string): Promise<{ into: string; changedBooks: number }> {
+  return requestJson("/api/admin/authors/merge", jsonBody("POST", { from, into }));
 }
 
 export function fetchLibraryHealth(signal?: AbortSignal): Promise<LibraryHealth> {

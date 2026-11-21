@@ -23,6 +23,7 @@ async function fetchPagesUpTo(params: CatalogParams, signal: AbortSignal): Promi
 
 function pageTitle(params: CatalogParams): string | null {
   if (params.query) return `« ${params.query} »`;
+  if (params.series) return params.series;
   if (params.author) return params.author;
   return null;
 }
@@ -30,11 +31,11 @@ function pageTitle(params: CatalogParams): string | null {
 export function CatalogPage({ libraryVersion }: { libraryVersion: number }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const params = readCatalogParams(searchParams);
-  const hasFilters = Boolean(params.query || params.author || params.language);
+  const hasFilters = Boolean(params.query || params.author || params.language || params.series);
   const isHome = !hasFilters && params.sort === "relevance";
   useDocumentTitle(pageTitle(params));
 
-  const books = useAsync((signal) => fetchPagesUpTo(params, signal), [params.query, params.author, params.language, params.sort, params.page, libraryVersion]);
+  const books = useAsync((signal) => fetchPagesUpTo(params, signal), [params.query, params.author, params.language, params.series, params.sort, params.page, libraryVersion]);
   const facets = useAsync((signal) => fetchFacets(signal), [libraryVersion]);
   const recent = useAsync(
     (signal) => (isHome ? fetchBooks({ ...params, sort: "recent", page: 1, pageSize: RECENT_SHELF_SIZE }, signal) : Promise.resolve(null)),

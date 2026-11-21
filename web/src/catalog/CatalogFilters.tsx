@@ -105,7 +105,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
 export function CatalogFilters({ params, facets, onChange }: CatalogFiltersProps) {
   // Without a query there is nothing to rank, and the server falls back to title order.
   const displayedSort: BookSort = params.sort === "relevance" && !params.query ? "title" : params.sort;
-  const activeCount = Number(Boolean(params.author)) + Number(Boolean(params.language));
+  const activeCount = Number(Boolean(params.author)) + Number(Boolean(params.language)) + Number(Boolean(params.series));
   // On a phone the filter row is folded behind a button; on wider screens CSS always shows it.
   const [isOpen, setIsOpen] = useState(false);
 
@@ -141,6 +141,7 @@ export function CatalogFilters({ params, facets, onChange }: CatalogFiltersProps
       </div>
       {activeCount > 0 ? (
         <div className="chips" aria-label="Filtres actifs">
+          {params.series ? <FilterChip label={`Série : ${params.series}`} onRemove={() => onChange({ series: "" })} /> : null}
           {params.author ? <FilterChip label={params.author} onRemove={() => onChange({ author: "" })} /> : null}
           {params.language ? <FilterChip label={languageLabel(params.language)} onRemove={() => onChange({ language: "" })} /> : null}
         </div>

@@ -16,6 +16,9 @@ export const ACTIVITY_ACTIONS = [
   "upload_rejected",
   "upload_cancelled",
   "sync_started",
+  "book_edited",
+  "book_deleted",
+  "authors_merged",
 ] as const;
 
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
