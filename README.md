@@ -31,6 +31,9 @@ uploads : à sauvegarder si l'on tient aux corrections de métadonnées faites d
 | `RCLONE_REMOTE` | Source rclone miroirée dans `/books` (seuls les `.epub`)    | vide : pas de synchro     |
 | `RCLONE_TRASH`  | Dossier rclone où vont les livres supprimés                 | `_corbeille` à côté de la bibliothèque |
 | `SYNC_CRON`     | Cron des synchros automatiques, `off` pour désactiver       | `0 4 * * *`               |
+| `BACKUP_CRON`   | Cron de la copie quotidienne de la base, `off` pour désactiver | `30 4 * * *`           |
+| `BACKUP_KEEP`   | Nombre de copies quotidiennes conservées                    | `14`                      |
+| `RCLONE_BACKUP_REMOTE` | Dossier rclone où les copies sont aussi envoyées     | `<remote>:_sauvegardes`   |
 | `SITE_ADDRESS`  | Nom de domaine servi par Caddy (compose)                    | `localhost`               |
 | `ADMIN_USER`, `ADMIN_PASSWORD` | Premier compte admin, lu seulement sans aucun compte | aucun                  |
 | `ACTIVITY_RETENTION_DAYS` | Durée de conservation du journal d'activité, en jours | `365`                    |
@@ -38,6 +41,11 @@ uploads : à sauvegarder si l'on tient aux corrections de métadonnées faites d
 | `HOST`          | Interface d'écoute                                          | `0.0.0.0` dans l'image    |
 
 Mise à jour : `git pull && docker compose up -d --build`.
+
+Sauvegarde : chaque nuit la base SQLite (comptes, corrections, journal, demandes) est copiée dans `./data/backups/`
+(14 jours conservés) et le dossier est miroité sur MEGA dans `_sauvegardes`, à côté de la bibliothèque. À la demande :
+`docker compose exec kyle-lib npm run backup -w server`. Restauration : arrêter le conteneur, remplacer
+`./data/library.sqlite` par la copie voulue (supprimer les fichiers `-wal`/`-shm` à côté), redémarrer.
 
 ## Développer
 

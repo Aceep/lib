@@ -6,6 +6,7 @@ import { createBookAdmin } from "./admin/book-admin.js";
 import { createLibraryStatsQueries } from "./admin/library-stats.js";
 import { createLibraryHealthQueries } from "./admin/library-health.js";
 import { createAuthService } from "./auth/auth-service.js";
+import { scheduleBackup } from "./backup/schedule-backup.js";
 import { createBookRequests } from "./requests/book-requests.js";
 import { createBibliographySources } from "./missing/bibliography-sources.js";
 import { createMissingBooks } from "./missing/missing-books.js";
@@ -87,9 +88,27 @@ const app = buildApp({
 });
 logError = (message, error) => app.log.error({ err: error }, message);
 
+const backupSchedule = config.backupCron
+  ? scheduleBackup(
+      config.backupCron,
+      { database, backupsDirectory: config.backupsDirectory, keep: config.backupKeep, rcloneRemote: config.rcloneBackupRemote, runCommand },
+      {
+        info: (result) => {
+          if (result.remoteError) {
+            app.log.warn({ filePath: result.filePath, remoteError: result.remoteError }, "database backed up locally but the remote copy failed");
+          } else {
+            app.log.info({ filePath: result.filePath, pruned: result.pruned }, "database backed up");
+          }
+        },
+        error: (error) => logError("database backup failed", error),
+      },
+    )
+  : null;
+
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, async () => {
     schedule?.stop();
+    backupSchedule?.stop();
     await app.close();
     // Not waiting for a running sync: a first MEGA pull can take hours. It is marked interrupted on next start.
     database.close();
@@ -101,6 +120,10 @@ await app.listen({ port: config.port, host: config.host });
 app.log.info(
   { rcloneRemote: config.rcloneRemote, rcloneTrash: config.rcloneTrash, syncCron: config.syncCron, nextSyncAt: schedule?.nextRunAt() ?? null },
   "sync configuration",
+);
+app.log.info(
+  { backupCron: config.backupCron, backupsDirectory: config.backupsDirectory, keep: config.backupKeep, remote: config.rcloneBackupRemote, nextBackupAt: backupSchedule?.nextRunAt() ?? null },
+  "backup configuration",
 );
 if (createdInitialAdmin) {
   app.log.info({ username: config.initialAdmin?.username }, "created the initial admin account; ADMIN_PASSWORD can now be removed from the environment");

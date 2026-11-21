@@ -22,11 +22,21 @@ export type ServerConfig = {
   trustProxy: boolean;
   /** Activity log entries older than this are deleted. */
   activityRetentionDays: number;
+  /** Where daily copies of the database go. */
+  backupsDirectory: string;
+  /** Cron pattern for the daily database copy, null when disabled. */
+  backupCron: string | null;
+  /** Daily copies kept locally. */
+  backupKeep: number;
+  /** rclone folder the copies are mirrored to; null keeps them local. */
+  rcloneBackupRemote: string | null;
   /** Account created on first start, when no user exists yet. Null once the variables are removed. */
   initialAdmin: { username: string; password: string } | null;
 };
 
 const DEFAULT_SYNC_CRON = "0 4 * * *";
+// Half an hour after the sync, so the copy includes what it indexed.
+const DEFAULT_BACKUP_CRON = "30 4 * * *";
 
 function directoryFromEnvironment(environment: NodeJS.ProcessEnv, name: string, fallback: string): string {
   return path.resolve(environment[name]?.trim() || fallback);
@@ -43,12 +53,28 @@ function parsePort(rawPort: string | undefined): number {
   return port;
 }
 
-function parseSyncCron(rawPattern: string | undefined): string | null {
+function parseCron(rawPattern: string | undefined, fallback: string): string | null {
   const pattern = rawPattern?.trim();
   if (pattern === undefined || pattern === "") {
-    return DEFAULT_SYNC_CRON;
+    return fallback;
   }
   return pattern.toLowerCase() === "off" ? null : pattern;
+}
+
+function parseBackupKeep(rawKeep: string | undefined): number {
+  if (!rawKeep?.trim()) {
+    return 14;
+  }
+  const keep = Number(rawKeep);
+  if (!Number.isInteger(keep) || keep < 1) {
+    throw new Error(`BACKUP_KEEP must be a positive integer, got "${rawKeep}"`);
+  }
+  return keep;
+}
+
+/** "mega:Library" -> "mega:_sauvegardes": next to the library, outside what the sync mirrors. */
+function defaultBackupRemote(remote: string): string {
+  return siblingRemote(remote, "_sauvegardes");
 }
 
 function parseRetentionDays(rawDays: string | undefined): number {
@@ -68,14 +94,18 @@ function parseInitialAdmin(environment: NodeJS.ProcessEnv): ServerConfig["initia
   return username && password ? { username, password } : null;
 }
 
-/** "mega:Library" -> "mega:_corbeille": next to the library, where a sync of the library never looks. */
-function defaultTrashRemote(remote: string): string {
+/** "mega:Library" + "_corbeille" -> "mega:_corbeille": a folder next to the library, where a sync of the library never looks. */
+function siblingRemote(remote: string, name: string): string {
   const separator = remote.indexOf(":");
   if (separator === -1) {
-    return path.posix.join(path.posix.dirname(remote), "_corbeille");
+    return path.posix.join(path.posix.dirname(remote), name);
   }
   const parent = path.posix.dirname(remote.slice(separator + 1));
-  return `${remote.slice(0, separator + 1)}${parent === "." || parent === "/" ? "" : `${parent}/`}_corbeille`;
+  return `${remote.slice(0, separator + 1)}${parent === "." || parent === "/" ? "" : `${parent}/`}${name}`;
+}
+
+function defaultTrashRemote(remote: string): string {
+  return siblingRemote(remote, "_corbeille");
 }
 
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -94,9 +124,13 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
     rcloneRemote,
     rcloneTrash: rcloneRemote ? environment.RCLONE_TRASH?.trim() || defaultTrashRemote(rcloneRemote) : null,
     trashDirectory: path.join(dataDirectory, "trash"),
-    syncCron: parseSyncCron(environment.SYNC_CRON),
+    syncCron: parseCron(environment.SYNC_CRON, DEFAULT_SYNC_CRON),
     trustProxy: ["1", "true"].includes(environment.TRUST_PROXY?.trim().toLowerCase() ?? ""),
     activityRetentionDays: parseRetentionDays(environment.ACTIVITY_RETENTION_DAYS),
+    backupsDirectory: path.join(dataDirectory, "backups"),
+    backupCron: parseCron(environment.BACKUP_CRON, DEFAULT_BACKUP_CRON),
+    backupKeep: parseBackupKeep(environment.BACKUP_KEEP),
+    rcloneBackupRemote: rcloneRemote ? environment.RCLONE_BACKUP_REMOTE?.trim() || defaultBackupRemote(rcloneRemote) : null,
     initialAdmin: parseInitialAdmin(environment),
   };
 }

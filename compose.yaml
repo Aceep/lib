@@ -16,6 +16,9 @@ services:
       RCLONE_REMOTE: ${RCLONE_REMOTE:-}
       # Cron pattern for automatic syncs, "off" to disable (default: every day at 04:00).
       SYNC_CRON: ${SYNC_CRON:-0 4 * * *}
+      # Daily copy of the database next to the library on the remote; "off" to disable.
+      BACKUP_CRON: ${BACKUP_CRON:-30 4 * * *}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
       TZ: ${TZ:-Europe/Paris}
     volumes:
       - ./data:/data
