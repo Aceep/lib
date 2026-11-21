@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
     "index": "tsx src/index-books.ts",
     "duplicates": "tsx src/find-duplicates.ts",
     "plan-layout": "tsx src/plan-layout.ts",

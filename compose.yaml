@@ -1,0 +1,18 @@
+services:
+  kyle-lib:
+    build: .
+    image: kyle-lib
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # rclone source mirrored into /books; leave empty to index /books as is.
+      RCLONE_REMOTE: ${RCLONE_REMOTE:-}
+      # Cron pattern for automatic syncs, "off" to disable (default: every day at 04:00).
+      SYNC_CRON: ${SYNC_CRON:-0 4 * * *}
+      TZ: ${TZ:-Europe/Paris}
+    volumes:
+      - ./data:/data
+      - ./books:/books
+      # rclone.conf created with `rclone config` on the host; read-only, the app never writes it.
+      - ${RCLONE_CONFIG_DIR:-~/.config/rclone}:/config/rclone:ro

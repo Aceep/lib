@@ -97,7 +97,17 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
   depuis les fichiers, les métadonnées d'origine reviennent. Réécrire l'OPF dans l'archive serait l'étape suivante si ça gêne.
 - Limite : 300 Mo par fichier, un fichier par requête (le front envoie les fichiers un par un).
 
+## Étape 7 — Docker (fait le 2026-11-21)
+
+- `npm run build -w server` compile `src/` vers `server/dist/` (`tsconfig.build.json`) ; `npm start -w server` lance
+  `node dist/main.js`. Le défaut de `WEB_DIR` (`../../web/dist` depuis `config.js`) reste valable depuis `dist/`.
+- `Dockerfile` en trois étapes (build, deps de prod, runtime `node:22-bookworm-slim` + binaire rclone officiel),
+  `compose.yaml` + `.env.example` : volumes `./data:/data`, `./books:/books`, `~/.config/rclone:/config/rclone:ro`
+  (`RCLONE_CONFIG` pointe dessus). Procédure dans `README.md`.
+- Non testé sur le serveur cible : seulement `docker build` + `docker run` ici (WSL). Le conteneur tourne en `node` (uid 1000) :
+  si `./data`/`./books` sont créés par root sur l'hôte, les passer en `chown 1000:1000`.
+
 ## Plus tard
 
-- Étape 7 : Dockerfile + compose (rclone dans l'image, build de prod du serveur au lieu de `tsx`).
 - Phase 2 : demandes de livres (formulaire, liste, statut).
+- Réécrire l'OPF dans l'EPUB quand titre/auteurs sont corrigés à l'upload (aujourd'hui la correction ne vit que dans la base).
