@@ -37,6 +37,8 @@ export type BookPage = {
 export type BookDetails = BookSummary & {
   genres: string[];
   description: string | null;
+  /** Page the summary was taken from when it was found online rather than read in the file; null otherwise. */
+  descriptionSource: string | null;
   fileSize: number;
   addedAt: string;
   updatedAt: string;
@@ -63,6 +65,7 @@ type BookRow = {
 
 type BookDetailsRow = BookRow & {
   description: string | null;
+  description_source: string | null;
   file_size: number;
   updated_at: string;
 };
@@ -116,9 +119,12 @@ export type CatalogQueries = ReturnType<typeof createCatalogQueries>;
 
 export function createCatalogQueries(database: LibraryDatabase) {
   const bookDetailsStatement = database.prepare<[number], BookDetailsRow>(
+    // The source is only shown while the summary displayed is the one found online, not one the file gained since.
     `SELECT books.id, books.title, books.language, books.series, books.series_index, books.cover_file, books.description, books.file_size,
-            books.added_at, books.updated_at, ${AUTHORS_JSON_COLUMN}
-     FROM books WHERE books.id = ?`,
+            books.added_at, books.updated_at, ${AUTHORS_JSON_COLUMN},
+            CASE WHEN book_overrides.description = books.description THEN book_overrides.description_source END AS description_source
+     FROM books LEFT JOIN book_overrides ON book_overrides.content_hash = books.content_hash
+     WHERE books.id = ?`,
   );
   const bookFilePathStatement = database.prepare<[number], { file_path: string }>(
     "SELECT file_path FROM books WHERE id = ?",
@@ -203,6 +209,7 @@ export function createCatalogQueries(database: LibraryDatabase) {
         ...toSummary(row),
         genres: bookGenresStatement.all(row.id).map((genre) => genre.name),
         description: row.description,
+        descriptionSource: row.description_source,
         fileSize: row.file_size,
         addedAt: row.added_at,
         updatedAt: row.updated_at,

@@ -30,6 +30,8 @@ export type SyncServiceOptions = {
   rcloneRemote: string | null;
   runCommand: CommandRunner;
   logError: (message: string, error: unknown) => void;
+  /** Runs once the run is recorded, for work that completes the catalog (summaries fetched online). Failures are logged. */
+  afterIndex?: () => Promise<void>;
 };
 
 type SyncRunRow = {
@@ -79,7 +81,7 @@ async function pullFromRemote(runCommand: CommandRunner, remote: string, booksDi
 export type SyncService = ReturnType<typeof createSyncService>;
 
 export function createSyncService(options: SyncServiceOptions) {
-  const { database, store, booksDirectory, coversDirectory, rcloneRemote, runCommand, logError } = options;
+  const { database, store, booksDirectory, coversDirectory, rcloneRemote, runCommand, logError, afterIndex } = options;
 
   const statements = {
     markInterrupted: database.prepare<[string]>(
@@ -149,6 +151,10 @@ export function createSyncService(options: SyncServiceOptions) {
       failuresJson: report ? JSON.stringify(report.failures) : null,
       error,
     });
+
+    if (afterIndex) {
+      await afterIndex().catch((afterError: unknown) => logError(`Sync run ${runId}: post-index work failed`, afterError));
+    }
   }
 
   return {

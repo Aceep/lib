@@ -8,6 +8,7 @@ import type {
   WorkDecision,
   BookCorrection,
   ActivityPage,
+  FillDescriptionsReport,
   LibraryHealth,
   SeriesReport,
   SeriesSuggestion,
@@ -254,6 +255,11 @@ export function setBooksLanguage(bookIds: number[], language: string): Promise<{
 
 export function fetchLibraryHealth(signal?: AbortSignal): Promise<LibraryHealth> {
   return requestJson("/api/admin/health", { signal: signal ?? null });
+}
+
+/** Looks up, online, a summary for one batch of the books whose file has none. */
+export function fillDescriptions(): Promise<FillDescriptionsReport> {
+  return requestJson("/api/admin/descriptions/fill", { method: "POST" });
 }
 
 export async function cancelUpload(uploadId: string): Promise<void> {

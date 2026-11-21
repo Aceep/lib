@@ -14,6 +14,8 @@ import { createCatalogQueries } from "./catalog/catalog-queries.js";
 import { loadConfig } from "./config.js";
 import { openLibraryDatabase } from "./db/database.js";
 import { createLibraryStore } from "./db/library-store.js";
+import { createDescriptionSources } from "./descriptions/description-sources.js";
+import { createDescriptionFiller } from "./descriptions/fill-descriptions.js";
 import { runCommand } from "./sync/run-command.js";
 import { scheduleSync } from "./sync/schedule-sync.js";
 import { createSyncService } from "./sync/sync-service.js";
@@ -25,7 +27,9 @@ await mkdir(config.dataDirectory, { recursive: true });
 const database = openLibraryDatabase(config.databasePath);
 const store = createLibraryStore(database);
 let logError: (message: string, error: unknown) => void = (message, error) => console.error(message, error);
+let logInfo: (details: object, message: string) => void = (details, message) => console.log(message, details);
 
+const descriptions = createDescriptionFiller({ store, sources: createDescriptionSources({ googleBooksApiKey: config.googleBooksApiKey }) });
 const sync = createSyncService({
   database,
   store,
@@ -34,6 +38,16 @@ const sync = createSyncService({
   rcloneRemote: config.rcloneRemote,
   runCommand,
   logError: (message, error) => logError(message, error),
+  // New arrivals rarely carry a summary; look one up right after they are indexed.
+  afterIndex: async () => {
+    const report = await descriptions.fillMissing();
+    if (report.checked > 0 || report.stoppedBecause) {
+      logInfo(
+        { found: report.found.length, notFound: report.notFound.length, postponed: report.postponed.length, remaining: report.remaining, sourceErrors: report.sourceErrors, stoppedBecause: report.stoppedBecause },
+        "summaries looked up online",
+      );
+    }
+  },
 });
 const schedule = config.syncCron ? scheduleSync(config.syncCron, sync) : null;
 const uploads = await createUploadService({
@@ -79,6 +93,7 @@ const app = buildApp({
   trustProxy: config.trustProxy,
   sync,
   uploads,
+  descriptions,
   nextScheduledSyncAt: () => schedule?.nextRunAt() ?? null,
   booksDirectory: config.booksDirectory,
   coversDirectory: config.coversDirectory,
@@ -87,6 +102,7 @@ const app = buildApp({
   logger: true,
 });
 logError = (message, error) => app.log.error({ err: error }, message);
+logInfo = (details, message) => app.log.info(details, message);
 
 const backupSchedule = config.backupCron
   ? scheduleBackup(

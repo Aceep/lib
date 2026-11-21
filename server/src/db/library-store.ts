@@ -51,7 +51,19 @@ type OverrideRow = {
   series: string | null;
   series_index: number | null;
   language: string | null;
+  description: string | null;
 };
+
+/** A book the file describes in no way, for the lookup of a summary online. */
+export type UndescribedBook = {
+  bookId: number;
+  contentHash: string;
+  title: string;
+  authors: string[];
+  language: string | null;
+};
+
+type UndescribedBookRow = { id: number; content_hash: string; title: string; language: string | null };
 
 type StoredBookRow = {
   id: number;
@@ -184,7 +196,29 @@ export function createLibraryStore(database: LibraryDatabase) {
     ),
     deleteInvalidFile: database.prepare<[string]>("DELETE FROM invalid_files WHERE file_path = ?"),
     getOverride: database.prepare<[string], OverrideRow>(
-      "SELECT title, authors_json, has_series, series, series_index, language FROM book_overrides WHERE content_hash = ?",
+      "SELECT title, authors_json, has_series, series, series_index, language, description FROM book_overrides WHERE content_hash = ?",
+    ),
+    upsertFetchedDescription: database.prepare<[string, string, string, string, string]>(
+      `INSERT INTO book_overrides (content_hash, description, description_source, description_checked_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (content_hash) DO UPDATE SET description = excluded.description, description_source = excluded.description_source,
+         description_checked_at = excluded.description_checked_at`,
+    ),
+    markDescriptionChecked: database.prepare<[string, string, string]>(
+      `INSERT INTO book_overrides (content_hash, description_checked_at, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT (content_hash) DO UPDATE SET description_checked_at = excluded.description_checked_at`,
+    ),
+    setDescription: database.prepare<[string, string, number]>("UPDATE books SET description = ?, updated_at = ? WHERE id = ?"),
+    // Books without a summary, never looked up or not since the given date; newest additions first.
+    listUndescribed: database.prepare<[string, number], UndescribedBookRow>(
+      `SELECT books.id, books.content_hash, books.title, books.language
+       FROM books LEFT JOIN book_overrides ON book_overrides.content_hash = books.content_hash
+       WHERE coalesce(trim(books.description), '') = '' AND books.content_hash IS NOT NULL
+         AND (book_overrides.description_checked_at IS NULL OR book_overrides.description_checked_at < ?)
+       ORDER BY books.added_at DESC, books.id DESC LIMIT ?`,
+    ),
+    countUndescribed: database.prepare<[], { total: number }>(
+      "SELECT COUNT(*) AS total FROM books WHERE coalesce(trim(description), '') = ''",
     ),
     upsertOverride: database.prepare<{
       contentHash: string;
@@ -236,6 +270,8 @@ export function createLibraryStore(database: LibraryDatabase) {
       series: override.has_series ? override.series : record.series,
       seriesIndex: override.has_series ? override.series_index : record.seriesIndex,
       language: override.language ?? record.language,
+      // A summary found online only stands in for a file that has none.
+      description: record.description?.trim() || override.description,
     };
   }
 
@@ -442,6 +478,41 @@ export function createLibraryStore(database: LibraryDatabase) {
 
     setCoverFile(bookId: number, coverFile: string | null): void {
       statements.setCoverFile.run(coverFile, bookId);
+    },
+
+    /** Books whose file carries no summary, skipping those looked up online since `notCheckedSince`. */
+    listUndescribedBooks(notCheckedSince: Date, limit: number): UndescribedBook[] {
+      return statements.listUndescribed.all(notCheckedSince.toISOString(), limit).map((row) => ({
+        bookId: row.id,
+        contentHash: row.content_hash,
+        title: row.title,
+        authors: statements.listAuthorNames.all(row.id).map((author) => author.name),
+        language: row.language,
+      }));
+    },
+
+    countUndescribedBooks: (): number => statements.countUndescribed.get()?.total ?? 0,
+
+    /** Gives the book a summary found online, remembered against the file's hash like a correction. */
+    setFetchedDescription: database.transaction((bookId: number, contentHash: string, description: string, source: string, now: Date): void => {
+      const row = statements.getStoredBook.get(bookId);
+      if (!row) {
+        return;
+      }
+      const timestamp = now.toISOString();
+      statements.upsertFetchedDescription.run(contentHash, description, source, timestamp, timestamp);
+      statements.setDescription.run(description, timestamp, bookId);
+      replaceAuthorsAndSearchEntry(bookId, {
+        title: row.title,
+        authors: statements.listAuthorNames.all(bookId).map((author) => author.name),
+        description,
+        series: row.series,
+      });
+    }),
+
+    /** Records that nothing was found online for this file, so it is not looked up again for a while. */
+    markDescriptionChecked(contentHash: string, now: Date): void {
+      statements.markDescriptionChecked.run(contentHash, now.toISOString(), now.toISOString());
     },
 
     deleteBook: database.transaction((bookId: number): void => {

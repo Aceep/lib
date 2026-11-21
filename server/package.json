@@ -10,6 +10,7 @@
     "duplicates": "tsx src/find-duplicates.ts",
     "plan-layout": "tsx src/plan-layout.ts",
     "backup": "tsx src/backup-now.ts",
+    "descriptions": "tsx src/fill-descriptions.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

@@ -19,6 +19,8 @@ services:
       # Daily copy of the database next to the library on the remote; "off" to disable.
       BACKUP_CRON: ${BACKUP_CRON:-30 4 * * *}
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      # Optional: summaries of books whose file has none are also looked up on Google Books.
+      GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-}
       TZ: ${TZ:-Europe/Paris}
     volumes:
       - ./data:/data

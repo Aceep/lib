@@ -223,6 +223,14 @@ const MIGRATIONS: string[] = [
   -- 0 for books indexed before subjects were read: the indexer fills genres in without touching anything else.
   ALTER TABLE books ADD COLUMN genres_checked INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  -- A summary found online for a file that carries none (descriptions/), with the page it was taken from.
+  -- description_checked_at records the last lookup, successful or not, so a book nobody describes is not
+  -- looked up again every night.
+  ALTER TABLE book_overrides ADD COLUMN description TEXT;
+  ALTER TABLE book_overrides ADD COLUMN description_source TEXT;
+  ALTER TABLE book_overrides ADD COLUMN description_checked_at TEXT;
+  `,
 ];
 
 function migrate(database: LibraryDatabase): void {

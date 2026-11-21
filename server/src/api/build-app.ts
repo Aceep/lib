@@ -12,6 +12,7 @@ import { AuthError, type AuthService } from "../auth/auth-service.js";
 import { type MissingBooks, MissingBooksError, type WorkDecision } from "../missing/missing-books.js";
 import { type BookRequest, type BookRequests, RequestError, type RequestStatus } from "../requests/book-requests.js";
 import type { BookSort, CatalogQueries } from "../catalog/catalog-queries.js";
+import type { DescriptionFiller } from "../descriptions/fill-descriptions.js";
 import type { SyncService } from "../sync/sync-service.js";
 import { actorOf, registerAuth } from "./auth-routes.js";
 import { type UploadActor, UploadError, type UploadPreview, type UploadService } from "../uploads/upload-service.js";
@@ -32,6 +33,8 @@ export type AppOptions = {
   stats?: LibraryStatsQueries;
   /** Admin report on what is wrong with the library; the route is not registered without it. */
   health?: LibraryHealthQueries;
+  /** Looks summaries up online for the books whose file has none; the route is not registered without it. */
+  descriptions?: DescriptionFiller;
   /** True behind a reverse proxy, so the client address and protocol come from the X-Forwarded-* headers. */
   trustProxy?: boolean;
   sync: SyncService;
@@ -286,7 +289,8 @@ function notFound(reply: FastifyReply, message: string) {
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
-  const { catalog, auth, activity, health, stats, books, missing, requests, sync, uploads, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } = options;
+  const { catalog, auth, activity, health, stats, books, missing, requests, descriptions, sync, uploads, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } =
+    options;
   const app = Fastify({ logger, trustProxy: options.trustProxy ?? false });
 
   if (webDirectory) {
@@ -486,6 +490,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
         return updated;
       },
     );
+  }
+
+  if (descriptions) {
+    // One batch per call: the sources are shared and slow, and the admin sees progress batch by batch.
+    app.post("/api/admin/descriptions/fill", async () => descriptions.fillMissing());
   }
 
   if (missing) {

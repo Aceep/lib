@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
-import { correctBook, fetchLibraryHealth, fetchSeriesSuggestions, mergeAuthors, rewriteAuthor, setBooksLanguage } from "../api/client.js";
-import type { AuthorFix, AuthorlessBook, LibraryHealth, MissingField, SeriesSuggestion, SwappedBook, SyncRun } from "../api/types.js";
+import { correctBook, fetchLibraryHealth, fetchSeriesSuggestions, fillDescriptions, mergeAuthors, rewriteAuthor, setBooksLanguage } from "../api/client.js";
+import type { AuthorFix, AuthorlessBook, FillDescriptionsReport, LibraryHealth, MissingField, SeriesSuggestion, SwappedBook, SyncRun } from "../api/types.js";
 import { authorsLabel, countLabel, dateTimeLabel, fileSizeLabel, languageLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
@@ -412,6 +412,55 @@ function BooksWithoutLanguage({ books, onChanged }: { books: LibraryHealth["inco
   );
 }
 
+function fillSummary(report: FillDescriptionsReport): string {
+  const parts = [`${countLabel(report.found.length, "résumé trouvé", "résumés trouvés")} en ligne`];
+  if (report.notFound.length > 0) {
+    parts.push(`${report.notFound.length} introuvable${report.notFound.length > 1 ? "s" : ""}`);
+  }
+  if (report.postponed.length > 0) {
+    parts.push(`${report.postponed.length} à retenter (une source ne répondait pas)`);
+  }
+  if (report.remaining > 0) {
+    parts.push(`${countLabel(report.remaining, "livre encore sans résumé", "livres encore sans résumé")}`);
+  }
+  const summary = `${parts.join(", ")}.`;
+  const trouble = report.stoppedBecause ?? report.sourceErrors[0] ?? null;
+  return trouble ? `${summary} ${trouble}` : summary;
+}
+
+/** One batch of lookups per click; the sources are slow and shared, so a batch is kept short. */
+function FetchDescriptionsButton({ missingCount, onChanged }: { missingCount: number; onChanged: (message: string) => void }) {
+  const [isBusy, setIsBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  async function handleClick() {
+    setIsBusy(true);
+    setErrorMessage(null);
+    try {
+      onChanged(fillSummary(await fillDescriptions()));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+    setIsBusy(false);
+  }
+
+  if (missingCount === 0) {
+    return null;
+  }
+  return (
+    <p className="merge-actions">
+      <button type="button" disabled={isBusy} onClick={() => void handleClick()}>
+        {isBusy ? "Recherche en cours…" : `Chercher les résumés manquants en ligne (${missingCount})`}
+      </button>
+      {errorMessage ? (
+        <span className="error" role="alert">
+          {errorMessage}
+        </span>
+      ) : null}
+    </p>
+  );
+}
+
 export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void }) {
   useDocumentTitle("Santé de la bibliothèque");
   const health = useAsync((signal) => fetchLibraryHealth(signal), []);
@@ -422,6 +471,7 @@ export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void 
   const [fixMessage, setFixMessage] = useState<string | null>(null);
   const [mergeMessage, setMergeMessage] = useState<string | null>(null);
   const [authorMessage, setAuthorMessage] = useState<string | null>(null);
+  const [descriptionMessage, setDescriptionMessage] = useState<string | null>(null);
 
   if (health.status === "error") {
     return (
@@ -584,7 +634,20 @@ export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void 
         </ul>
       </Section>
 
+      {descriptionMessage ? (
+        <p className="form-success" role="status">
+          {descriptionMessage}
+        </p>
+      ) : null}
       <Section title="Fiches incomplètes" count={incompleteBooks.length} emptyText="Chaque livre a une couverture, une langue et un résumé.">
+        <FetchDescriptionsButton
+          missingCount={incompleteBooks.filter((book) => book.missing.includes("description")).length}
+          onChanged={(message) => {
+            setDescriptionMessage(message);
+            health.reload();
+            onLibraryChanged();
+          }}
+        />
         <ul className="record-list">
           {incompleteBooks.map((book) => (
             <li key={book.id}>

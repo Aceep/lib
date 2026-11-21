@@ -729,6 +729,12 @@ button:disabled {
   overflow: hidden;
 }
 
+.book-description-source {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
 .book-page .shelf {
   margin-top: 2.5rem;
   padding-top: 1.5rem;

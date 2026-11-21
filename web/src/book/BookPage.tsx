@@ -22,7 +22,28 @@ function seriesLink(series: string): string {
 
 const seriesIndexFormat = new Intl.NumberFormat("fr", { maximumFractionDigits: 2 });
 
-function Description({ text }: { text: string }) {
+/** "fr.wikipedia.org" → "Wikipédia": the name readers know the source by. */
+function sourceName(source: string): string {
+  const host = (() => {
+    try {
+      return new URL(source).hostname;
+    } catch {
+      return source;
+    }
+  })();
+  if (host.endsWith("wikipedia.org")) {
+    return "Wikipédia";
+  }
+  if (host.endsWith("openlibrary.org")) {
+    return "Open Library";
+  }
+  if (host.includes("google")) {
+    return "Google Livres";
+  }
+  return host;
+}
+
+function Description({ text, source }: { text: string; source: string | null }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = text.length > DESCRIPTION_FOLD_LENGTH;
   return (
@@ -32,6 +53,15 @@ function Description({ text }: { text: string }) {
         <button type="button" className="link-button" onClick={() => setExpanded((value) => !value)}>
           {expanded ? "Réduire" : "Lire la suite"}
         </button>
+      ) : null}
+      {source ? (
+        <p className="book-description-source">
+          Résumé repris de{" "}
+          <a href={source} target="_blank" rel="noreferrer">
+            {sourceName(source)}
+          </a>
+          , le fichier n'en contenait pas.
+        </p>
       ) : null}
     </div>
   );
@@ -232,7 +262,7 @@ function BookDetailsView({ book }: { book: BookDetails }) {
           </a>
         </div>
       </div>
-      {book.description ? <Description text={book.description} /> : null}
+      {book.description ? <Description text={book.description} source={book.descriptionSource} /> : null}
     </article>
   );
 }

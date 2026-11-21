@@ -39,6 +39,7 @@ uploads : à sauvegarder si l'on tient aux corrections de métadonnées faites d
 | `ACTIVITY_RETENTION_DAYS` | Durée de conservation du journal d'activité, en jours | `365`                    |
 | `TRUST_PROXY`   | `true` derrière un proxy : IP et protocole lus dans `X-Forwarded-*` | `true` dans compose |
 | `HOST`          | Interface d'écoute                                          | `0.0.0.0` dans l'image    |
+| `GOOGLE_BOOKS_API_KEY` | Clé Google Books pour la recherche de résumés (optionnelle, voir plus bas) | vide : Open Library et Wikipédia seulement |
 
 Mise à jour : `git pull && docker compose up -d --build`.
 
@@ -46,6 +47,13 @@ Sauvegarde : chaque nuit la base SQLite (comptes, corrections, journal, demandes
 (14 jours conservés) et le dossier est miroité sur MEGA dans `_sauvegardes`, à côté de la bibliothèque. À la demande :
 `docker compose exec kyle-lib npm run backup -w server`. Restauration : arrêter le conteneur, remplacer
 `./data/library.sqlite` par la copie voulue (supprimer les fichiers `-wal`/`-shm` à côté), redémarrer.
+
+Résumés : pour les EPUB qui n'en contiennent pas, un résumé est cherché en ligne (Google Books si une clé est fournie,
+sinon Open Library puis Wikipédia, dans la langue du livre), après chaque synchro et depuis *Admin → Santé* ; la fiche
+indique alors d'où il vient. Il n'est retenu que si le titre et un auteur correspondent, et il s'efface si le fichier
+gagne un jour son propre résumé. Google Books est la source la plus riche pour les parutions récentes mais refuse les
+requêtes anonymes : créer une clé API (console Google Cloud, API « Books », gratuite jusqu'à 1 000 requêtes par jour)
+et la passer dans `GOOGLE_BOOKS_API_KEY`. À la demande : `docker compose exec kyle-lib npm run descriptions -w server -- --limit 100`.
 
 ## Développer
 

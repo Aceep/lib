@@ -235,6 +235,21 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
   (refus d'écraser, en local comme sur MEGA ; le plan garde le nom du fichier déjà en place). Le fichier écrasé est
   probablement dans la corbeille MEGA ; il reste un *Le Bal* (édition réparée, avec couverture).
 
+## Résumés cherchés en ligne (2026-11-22)
+
+- `server/src/descriptions/` : `description-sources.ts` (Google Books **si `GOOGLE_BOOKS_API_KEY`**, Open Library, Wikipédia
+  FR — EN pour les livres en anglais ; un résultat n'est retenu que si `titleKey` égal/préfixe **et** nom de famille
+  d'un auteur présent ; page Wikipédia refusée si homonymie ou si l'extrait ne nomme pas l'auteur) et
+  `fill-descriptions.ts` (lot de 40, plus récents d'abord ; une source en panne est mise au repos 15 min, le livre est
+  « reporté » ; arrêt seulement quand plus aucune source ne répond).
+- Stockage : `book_overrides.description / description_source / description_checked_at` (migration 12). Le résumé du
+  fichier gagne toujours ; `description_checked_at` évite de redemander un livre introuvable avant 30 jours.
+- Déclencheurs : après chaque synchro (`afterIndex` du `sync-service`), bouton dans *Admin → Santé → Fiches incomplètes*
+  (`POST /api/admin/descriptions/fill`), CLI `npm run descriptions -w server -- --limit N`.
+- Fiche livre : « Résumé repris de Wikipédia / Open Library / Google Livres » avec lien (`descriptionSource`).
+- Google Books sans clé répond 429 en permanence (quota anonyme partagé) : la source est ignorée tant qu'il n'y a pas de
+  clé. Avec une clé (gratuite, 1 000 req/jour) la couverture des parutions récentes serait bien meilleure.
+
 ## Plus tard
 
 - Phase 2 : demandes de livres (formulaire, liste, statut) — intégrée au plan du panneau admin ci-dessus.

@@ -32,6 +32,8 @@ export type ServerConfig = {
   rcloneBackupRemote: string | null;
   /** Account created on first start, when no user exists yet. Null once the variables are removed. */
   initialAdmin: { username: string; password: string } | null;
+  /** Lets the summary lookup query Google Books beyond the few anonymous requests a day. Null: other sources only. */
+  googleBooksApiKey: string | null;
 };
 
 const DEFAULT_SYNC_CRON = "0 4 * * *";
@@ -132,5 +134,6 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
     backupKeep: parseBackupKeep(environment.BACKUP_KEEP),
     rcloneBackupRemote: rcloneRemote ? environment.RCLONE_BACKUP_REMOTE?.trim() || defaultBackupRemote(rcloneRemote) : null,
     initialAdmin: parseInitialAdmin(environment),
+    googleBooksApiKey: environment.GOOGLE_BOOKS_API_KEY?.trim() || null,
   };
 }

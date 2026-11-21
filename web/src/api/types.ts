@@ -26,6 +26,8 @@ export type BookDetails = BookSummary & {
   /** Shelves derived from the file's subjects; empty when they said nothing usable. */
   genres: string[];
   description: string | null;
+  /** Page the summary was taken from when it was found online rather than read in the file. */
+  descriptionSource: string | null;
   fileSize: number;
   addedAt: string;
   updatedAt: string;
@@ -281,6 +283,18 @@ export type SwappedBook = {
   seriesIndex: number | null;
   suggestedTitle: string;
   suggestedAuthors: string[];
+};
+
+/** Outcome of one batch of summary lookups online. */
+export type FillDescriptionsReport = {
+  checked: number;
+  found: { bookId: number; title: string; provider: "google-books" | "openlibrary" | "wikipedia" }[];
+  notFound: { bookId: number; title: string }[];
+  /** Nothing found while a source was down: asked again next time. */
+  postponed: { bookId: number; title: string }[];
+  remaining: number;
+  sourceErrors: string[];
+  stoppedBecause: string | null;
 };
 
 export type LibraryHealth = {
