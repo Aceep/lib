@@ -113,6 +113,18 @@ const bookCorrectionSchema = {
 
 type MergeAuthorsBody = { from: string[]; into: string };
 
+type RewriteAuthorBody = { from: string; into: string[] };
+
+const rewriteAuthorSchema = {
+  type: "object",
+  required: ["from", "into"],
+  properties: {
+    from: { type: "string", minLength: 1, maxLength: 200 },
+    into: { type: "array", minItems: 1, maxItems: 10, items: { type: "string", maxLength: 200 } },
+  },
+  additionalProperties: false,
+} as const;
+
 type BooksLanguageBody = { bookIds: number[]; language: string };
 
 const booksLanguageSchema = {
@@ -382,6 +394,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
         return catalog.getBook(request.params.id);
       },
     );
+
+    app.post<{ Body: RewriteAuthorBody }>("/api/admin/authors/rewrite", { schema: { body: rewriteAuthorSchema } }, async (request) => {
+      const result = await books.rewriteAuthor(request.body.from, request.body.into, uploadActor(request).username);
+      activity?.record("authors_merged", actorOf(request), {
+        details: { into: result.into.join(" + "), from: request.body.from, changedBooks: result.changedBooks },
+      });
+      return result;
+    });
 
     app.post<{ Body: BooksLanguageBody }>("/api/admin/books/language", { schema: { body: booksLanguageSchema } }, async (request) => {
       const language = request.body.language.trim().toLowerCase();

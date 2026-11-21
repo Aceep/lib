@@ -64,7 +64,7 @@ export function AuthorsPage({ libraryVersion }: { libraryVersion: number }) {
           <ul className="author-list">
             {group.authors.map((author) => (
               <li key={author.name}>
-                <Link to={authorLink(author.name)}>{author.name}</Link>
+                <Link to={authorLink(author.name)}>{author.listName ?? author.name}</Link>
                 <span className="author-count">{author.bookCount}</span>
               </li>
             ))}

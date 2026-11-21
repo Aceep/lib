@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
-import { correctBook, fetchLibraryHealth, fetchSeriesSuggestions, mergeAuthors, setBooksLanguage } from "../api/client.js";
-import type { AuthorlessBook, LibraryHealth, MissingField, SeriesSuggestion, SyncRun } from "../api/types.js";
+import { correctBook, fetchLibraryHealth, fetchSeriesSuggestions, mergeAuthors, rewriteAuthor, setBooksLanguage } from "../api/client.js";
+import type { AuthorFix, AuthorlessBook, LibraryHealth, MissingField, SeriesSuggestion, SwappedBook, SyncRun } from "../api/types.js";
 import { authorsLabel, countLabel, dateTimeLabel, fileSizeLabel, languageLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
@@ -142,6 +142,114 @@ function AuthorlessBooks({ books, onChanged }: { books: AuthorlessBook[]; onChan
             ) : (
               <span className="record-secondary">Le dossier ne dit pas qui l'a écrit : ouvrez la fiche pour saisir l'auteur.</span>
             )}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** Runs `action` on each item in turn and reports how many went through before any failure. */
+function useBatch<T>(action: (item: T) => Promise<unknown>, onDone: (count: number) => void) {
+  const [isBusy, setIsBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  async function run(items: T[]) {
+    setIsBusy(true);
+    setErrorMessage(null);
+    let done = 0;
+    try {
+      for (const item of items) {
+        await action(item);
+        done++;
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+    setIsBusy(false);
+    if (done > 0) {
+      onDone(done);
+    }
+  }
+
+  const error = errorMessage ? (
+    <p className="error" role="alert">
+      {errorMessage}
+    </p>
+  ) : null;
+  return { isBusy, run, error };
+}
+
+/** Books tagged the wrong way round: the title holds the author and the author field holds the title. */
+function SwappedBooks({ books, onChanged }: { books: SwappedBook[]; onChanged: (message: string) => void }) {
+  const batch = useBatch<SwappedBook>(
+    (book) => correctBook(book.id, { title: book.suggestedTitle, authors: book.suggestedAuthors, series: book.series, seriesIndex: book.seriesIndex }),
+    (count) => onChanged(`${countLabel(count, "fiche remise", "fiches remises")} à l'endroit.`),
+  );
+
+  return (
+    <>
+      {books.length > 1 ? (
+        <p className="merge-actions">
+          <button type="button" disabled={batch.isBusy} onClick={() => void batch.run(books)}>
+            Tout inverser ({books.length})
+          </button>
+        </p>
+      ) : null}
+      {batch.error}
+      <ul className="record-list">
+        {books.map((book) => (
+          <li key={book.id}>
+            <span className="record-main">
+              <Link to={`/books/${book.id}`}>{book.title}</Link>
+              <span className="record-secondary"> — noté comme écrit par « {book.authors.join(", ")} »</span>
+            </span>
+            <span className="merge-actions">
+              <span className="record-secondary">
+                Deviendrait : « {book.suggestedTitle} », de {book.suggestedAuthors.join(" et ")}
+              </span>
+              <button type="button" disabled={batch.isBusy} onClick={() => void batch.run([book])}>
+                Inverser
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** Author fields to rewrite: "Atwood, Margaret", "Philippe BESSON", "Aurélien Barrau et Louis Schweitzer". */
+function AuthorFixes({ fixes, onChanged }: { fixes: AuthorFix[]; onChanged: (message: string) => void }) {
+  const batch = useBatch<AuthorFix>(
+    (fix) => rewriteAuthor(fix.name, fix.people),
+    (count) => onChanged(`${countLabel(count, "nom d'auteur corrigé", "noms d'auteurs corrigés")}.`),
+  );
+  const certain = fixes.filter((fix) => fix.certain);
+
+  return (
+    <>
+      <p className="merge-actions">
+        <button type="button" disabled={batch.isBusy || certain.length === 0} onClick={() => void batch.run(certain)}>
+          Tout corriger ({certain.length})
+        </button>
+        <span className="record-secondary">Les noms « à vérifier » ne sont pas inclus : l'ordre des mots y est seulement deviné.</span>
+      </p>
+      {batch.error}
+      <ul className="record-list">
+        {fixes.map((fix) => (
+          <li key={fix.name}>
+            <span className="record-main">
+              <Link to={`/?${new URLSearchParams({ author: fix.name })}`}>{fix.name}</Link> ({fix.bookCount})
+              <span className="record-secondary"> → </span>
+              {fix.people.join(" + ")}
+              {fix.certain ? null : <span className="status-tag is-running"> à vérifier</span>}
+            </span>
+            <span className="merge-actions">
+              <button type="button" disabled={batch.isBusy} onClick={() => void batch.run([fix])}>
+                Corriger
+              </button>
+            </span>
           </li>
         ))}
       </ul>
@@ -309,6 +417,8 @@ export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void 
   const series = useAsync((signal) => fetchSeriesSuggestions(signal), []);
   const [seriesMessage, setSeriesMessage] = useState<string | null>(null);
   const [languageMessage, setLanguageMessage] = useState<string | null>(null);
+  const [swapMessage, setSwapMessage] = useState<string | null>(null);
+  const [fixMessage, setFixMessage] = useState<string | null>(null);
   const [mergeMessage, setMergeMessage] = useState<string | null>(null);
   const [authorMessage, setAuthorMessage] = useState<string | null>(null);
 
@@ -322,7 +432,12 @@ export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void 
   if (!health.data) {
     return null;
   }
-  const { bookCount, invalidFiles, incompleteBooks, similarAuthors, authorlessBooks, probableDuplicates, syncRuns } = health.data;
+  const { bookCount, invalidFiles, incompleteBooks, similarAuthors, authorlessBooks, probableDuplicates, authorFixes, swappedBooks, syncRuns } = health.data;
+  const refresh = () => {
+    health.reload();
+    series.reload();
+    onLibraryChanged();
+  };
   const booksWithoutLanguage = incompleteBooks.filter((book) => book.missing.includes("language"));
   const seriesSuggestions = series.data ?? [];
 
@@ -358,6 +473,36 @@ export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void 
             setAuthorMessage(message);
             health.reload();
             onLibraryChanged();
+          }}
+        />
+      </Section>
+
+      {swapMessage ? (
+        <p className="form-success" role="status">
+          {swapMessage}
+        </p>
+      ) : null}
+      <Section title="Titre et auteur inversés" count={swappedBooks.length} emptyText="Aucun titre ne ressemble à un nom d'auteur.">
+        <SwappedBooks
+          books={swappedBooks}
+          onChanged={(message) => {
+            setSwapMessage(message);
+            refresh();
+          }}
+        />
+      </Section>
+
+      {fixMessage ? (
+        <p className="form-success" role="status">
+          {fixMessage}
+        </p>
+      ) : null}
+      <Section title="Noms d'auteurs à remettre en forme" count={authorFixes.length} emptyText="Tous les auteurs sont écrits « Prénom Nom ».">
+        <AuthorFixes
+          fixes={authorFixes}
+          onChanged={(message) => {
+            setFixMessage(message);
+            refresh();
           }}
         />
       </Section>

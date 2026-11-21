@@ -28,4 +28,16 @@ describe("groupAuthorsByLetter", () => {
       ["#", ["123 Collectif"]],
     ]);
   });
+
+  it("files an author under the initial of the family name", () => {
+    const groups = groupAuthorsByLetter([
+      { name: "Charles de Gaulle", bookCount: 1, sortName: "gaulle charles de" },
+      { name: "Frank Herbert", bookCount: 2, sortName: "herbert frank" },
+    ]);
+
+    expect(groups.map((group) => [group.letter, group.authors.map((author) => author.name)])).toEqual([
+      ["G", ["Charles de Gaulle"]],
+      ["H", ["Frank Herbert"]],
+    ]);
+  });
 });

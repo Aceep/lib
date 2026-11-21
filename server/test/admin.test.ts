@@ -8,6 +8,7 @@ import { type ActivityEntry, createActivityLog } from "../src/activity/activity-
 import { createBookAdmin } from "../src/admin/book-admin.js";
 import { createLibraryStatsQueries, type LibraryStats } from "../src/admin/library-stats.js";
 import { authorFromFilePath, authorIdentityKey, createLibraryHealthQueries, type LibraryHealth } from "../src/admin/library-health.js";
+import { authorSortKey, peopleInAuthorField } from "../src/admin/author-cleanup.js";
 import { seriesFromTitle } from "../src/admin/series-from-title.js";
 import { buildApp } from "../src/api/build-app.js";
 import { createAuthService } from "../src/auth/auth-service.js";
@@ -540,6 +541,65 @@ describe("POST /api/admin/books/language", () => {
       { title: "Sans langue", language: "fr" },
       { title: "Trois lettres", language: "fr" },
     ]);
+  });
+});
+
+describe("authorSortKey", () => {
+  it("puts the family name first, particles included or not as a bookshop would", () => {
+    expect(authorSortKey("Frank Herbert")).toBe("herbert frank");
+    expect(authorSortKey("Herbert, Frank")).toBe("herbert frank");
+    expect(authorSortKey("Charles de Gaulle")).toBe("gaulle charles de");
+    expect(authorSortKey("John Le Carré")).toBe("le carre john");
+    expect(authorSortKey("Colette")).toBe("colette");
+  });
+});
+
+describe("peopleInAuthorField", () => {
+  it("turns a name typed family name first, or in capitals, the right way round", () => {
+    expect(peopleInAuthorField("Atwood, Margaret")).toEqual(["Margaret Atwood"]);
+    expect(peopleInAuthorField("King,Stephen")).toEqual(["Stephen King"]);
+    expect(peopleInAuthorField("Le Carré, John")).toEqual(["John Le Carré"]);
+    expect(peopleInAuthorField("Récondo, Léonor de")).toEqual(["Léonor de Récondo"]);
+    expect(peopleInAuthorField("Philippe BESSON")).toEqual(["Philippe Besson"]);
+    expect(peopleInAuthorField("Frank Herbert")).toEqual(["Frank Herbert"]);
+  });
+
+  it("separates several people typed in one field", () => {
+    expect(peopleInAuthorField("Aurelien Barrau et Louis Schweitzer")).toEqual(["Aurelien Barrau", "Louis Schweitzer"]);
+    expect(peopleInAuthorField("Florence BRAUNSTEIN, Jean-François PEPIN")).toEqual(["Florence Braunstein", "Jean-François Pepin"]);
+    expect(peopleInAuthorField("Herbert, Brian , Anderson, Kevin J.")).toEqual(["Brian Herbert", "Kevin J. Anderson"]);
+    expect(peopleInAuthorField("Herbert,Frank-Ransom,Bill")).toEqual(["Frank Herbert", "Bill Ransom"]);
+    expect(peopleInAuthorField("Emile Ajar / Romain Gary")).toEqual(["Emile Ajar", "Romain Gary"]);
+  });
+});
+
+describe("author clean-up", () => {
+  it("finds titles sitting in the author field and names to rewrite, and fixes them", async () => {
+    await writeBook(path.join(booksDirectory, "a.epub"), "Laurent Gaudé", ["Chien 51"]);
+    await writeBook(path.join(booksDirectory, "b.epub"), "La Servante écarlate", ["Atwood, Margaret"]);
+    await writeBook(path.join(booksDirectory, "c.epub"), "Vernon Subutex", ["Virginie Despentes"]);
+    await writeBook(path.join(booksDirectory, "d.epub"), "L'effet Lazare", ["Herbert,Frank-Ransom,Bill"]);
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+    const admin = await adminSession();
+    const health = async () => (await app.inject({ method: "GET", url: "/api/admin/health", headers: admin })).json<LibraryHealth>();
+
+    const report = await health();
+    expect(report.swappedBooks).toMatchObject([{ title: "Laurent Gaudé", suggestedTitle: "Chien 51", suggestedAuthors: ["Laurent Gaudé"] }]);
+    expect(report.authorFixes).toEqual([
+      { name: "Atwood, Margaret", bookCount: 1, people: ["Margaret Atwood"], certain: true },
+      { name: "Herbert,Frank-Ransom,Bill", bookCount: 1, people: ["Frank Herbert", "Bill Ransom"], certain: true },
+    ]);
+
+    const rewrite = (headers: Session, from: string, into: string[]) =>
+      app.inject({ method: "POST", url: "/api/admin/authors/rewrite", headers, payload: { from, into } });
+    expect((await rewrite(await sessionOf("bob"), "Atwood, Margaret", ["Margaret Atwood"])).statusCode).toBe(403);
+    expect((await rewrite(admin, "Atwood, Margaret", ["Margaret Atwood"])).json()).toEqual({ into: ["Margaret Atwood"], changedBooks: 1 });
+    expect((await rewrite(admin, "Herbert,Frank-Ransom,Bill", ["Frank Herbert", "Bill Ransom"])).json()).toMatchObject({ changedBooks: 1 });
+
+    expect((await health()).authorFixes).toEqual([]);
+    const lazare = await app.inject({ method: "GET", url: `/api/books/${bookId("L'effet Lazare")}`, headers: admin });
+    expect(lazare.json()).toMatchObject({ authors: ["Frank Herbert", "Bill Ransom"] });
+    expect(await listTitles(admin, `author=${encodeURIComponent("Frank Herbert")}`)).toEqual(["Dune", "L'effet Lazare"]);
   });
 });
 

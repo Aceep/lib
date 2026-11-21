@@ -32,7 +32,8 @@ export type BookDetails = BookSummary & {
 };
 
 export type CatalogFacets = {
-  authors: { name: string; bookCount: number }[];
+  /** Ordered by family name; `sortName` is that key ("herbert frank"), `listName` the index form ("Herbert, Frank"). */
+  authors: { name: string; bookCount: number; sortName: string; listName: string }[];
   languages: { code: string; bookCount: number }[];
   /** Most populated first. */
   genres: { name: string; bookCount: number }[];
@@ -261,6 +262,26 @@ export type SeriesSuggestion = {
   source: "title" | "wikidata";
 };
 
+/** An author field to rewrite: family name first, capitals, or several people in one field. */
+export type AuthorFix = {
+  name: string;
+  bookCount: number;
+  people: string[];
+  /** False when the order of the words is only guessed. */
+  certain: boolean;
+};
+
+/** A book whose title and author were swapped. */
+export type SwappedBook = {
+  id: number;
+  title: string;
+  authors: string[];
+  series: string | null;
+  seriesIndex: number | null;
+  suggestedTitle: string;
+  suggestedAuthors: string[];
+};
+
 export type LibraryHealth = {
   bookCount: number;
   invalidFiles: { filePath: string; fileSize: number; error: string; detectedAt: string }[];
@@ -268,5 +289,7 @@ export type LibraryHealth = {
   similarAuthors: { names: { name: string; bookCount: number }[] }[];
   authorlessBooks: AuthorlessBook[];
   probableDuplicates: { books: { id: number; title: string; authors: string[]; filePath: string; fileSize: number }[] }[];
+  authorFixes: AuthorFix[];
+  swappedBooks: SwappedBook[];
   syncRuns: SyncRun[];
 };

@@ -110,6 +110,25 @@ export function createBookAdmin(options: BookAdminOptions) {
     },
 
     /**
+     * Rewrites one author field on every book that carries it: "Atwood, Margaret" becomes "Margaret Atwood",
+     * "A et B" becomes the two authors A and B.
+     */
+    async rewriteAuthor(from: string, into: string[], editor: string): Promise<{ into: string[]; changedBooks: number }> {
+      const people = [...new Set(into.map((name) => name.trim()).filter((name) => name !== ""))];
+      if (people.length === 0) {
+        throw new BookAdminError(400, "invalid_metadata", "Il faut au moins un nom d'auteur");
+      }
+      const bookIds = store.listBookIdsByAuthor(from);
+      for (const bookId of bookIds) {
+        const book = getBook(bookId);
+        const authors = [...new Set(book.authors.flatMap((author) => (author === from ? people : [author])))];
+        await correct(bookId, { ...book, authors }, editor);
+      }
+      store.deleteOrphanAuthors();
+      return { into: people, changedBooks: bookIds.length };
+    },
+
+    /**
      * Takes a book out of the library without destroying it: the file is moved to the trash folder of the
      * remote (or to a local trash when there is no remote), where it can be moved back by hand.
      */

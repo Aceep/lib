@@ -195,6 +195,11 @@ export function mergeAuthors(from: string[], into: string): Promise<{ into: stri
   return requestJson("/api/admin/authors/merge", jsonBody("POST", { from, into }));
 }
 
+/** Rewrites one author field on all its books: a name put the right way round, or several people separated. */
+export function rewriteAuthor(from: string, into: string[]): Promise<{ into: string[]; changedBooks: number }> {
+  return requestJson("/api/admin/authors/rewrite", jsonBody("POST", { from, into }));
+}
+
 export function fetchLibraryStats(signal?: AbortSignal): Promise<LibraryStats> {
   return requestJson("/api/admin/stats", { signal: signal ?? null });
 }

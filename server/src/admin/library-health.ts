@@ -3,6 +3,7 @@ import type { LibraryDatabase } from "../db/database.js";
 import { toSortKey } from "../db/sort-key.js";
 import { parseAuthor } from "../library/file-naming.js";
 import { titleKey } from "../missing/title-key.js";
+import { givenNameLast, peopleInAuthorField, swappedTitlePeople } from "./author-cleanup.js";
 import { seriesFromTitle } from "./series-from-title.js";
 
 export type InvalidFile = {
@@ -39,6 +40,27 @@ export type ProbableDuplicates = {
   books: { id: number; title: string; authors: string[]; filePath: string; fileSize: number }[];
 };
 
+/** An author field to rewrite: a name typed family name first, in capitals, or several people in one field. */
+export type AuthorFix = {
+  name: string;
+  bookCount: number;
+  /** The people the field names, each as "Prénom Nom". */
+  people: string[];
+  /** False when the order of the two words is only guessed ("Auster Paul"): not to be applied without a look. */
+  certain: boolean;
+};
+
+/** A book whose title is a person and whose author reads like a title: the two were swapped. */
+export type SwappedBook = {
+  id: number;
+  title: string;
+  authors: string[];
+  series: string | null;
+  seriesIndex: number | null;
+  suggestedTitle: string;
+  suggestedAuthors: string[];
+};
+
 /** A series the book seems to belong to, for an admin to accept. */
 export type SeriesSuggestion = {
   bookId: number;
@@ -67,6 +89,8 @@ export type LibraryHealth = {
   similarAuthors: SimilarAuthors[];
   authorlessBooks: AuthorlessBook[];
   probableDuplicates: ProbableDuplicates[];
+  authorFixes: AuthorFix[];
+  swappedBooks: SwappedBook[];
 };
 
 type InvalidFileRow = { file_path: string; file_size: number; error: string; detected_at: string };
@@ -196,6 +220,39 @@ export function createLibraryHealthQueries(database: LibraryDatabase) {
     return groups;
   }
 
+  function findSwappedBooks(books: (BookRow & { authors: string[] })[], authorNames: string[]): SwappedBook[] {
+    const known = new Set(authorNames.map(authorIdentityKey));
+    return books.flatMap((book) => {
+      const people = swappedTitlePeople(book.title, book.authors, (name) => known.has(authorIdentityKey(name)));
+      return people
+        ? [{ id: book.id, title: book.title, authors: book.authors, series: book.series, seriesIndex: book.series_index, suggestedTitle: book.authors[0]!, suggestedAuthors: people }]
+        : [];
+    });
+  }
+
+  function findAuthorFixes(authors: AuthorRow[], swapped: SwappedBook[]): AuthorFix[] {
+    // A title sitting in the author field is fixed by swapping it back, not by re-casing it.
+    const titles = new Set(swapped.flatMap((book) => book.authors));
+    const firstWords = new Map<string, number>();
+    const lastWords = new Map<string, number>();
+    for (const person of new Set(authors.flatMap((author) => peopleInAuthorField(author.name)))) {
+      const words = person.split(" ").map(toSortKey);
+      firstWords.set(words[0] ?? "", (firstWords.get(words[0] ?? "") ?? 0) + 1);
+      lastWords.set(words.at(-1) ?? "", (lastWords.get(words.at(-1) ?? "") ?? 0) + 1);
+    }
+    return authors.flatMap((author): AuthorFix[] => {
+      if (titles.has(author.name) || isPlaceholderAuthor(author.name)) {
+        return [];
+      }
+      const people = peopleInAuthorField(author.name);
+      if (people.length > 1 || (people.length === 1 && people[0] !== author.name)) {
+        return [{ name: author.name, bookCount: author.book_count, people, certain: true }];
+      }
+      const reordered = givenNameLast(author.name, firstWords, lastWords);
+      return reordered ? [{ name: author.name, bookCount: author.book_count, people: [reordered], certain: false }] : [];
+    });
+  }
+
   function findSimilarAuthors(): SimilarAuthors[] {
     const groups = new Map<string, SimilarAuthors["names"]>();
     for (const author of statements.listAuthors.all()) {
@@ -250,6 +307,8 @@ export function createLibraryHealthQueries(database: LibraryDatabase) {
 
     getHealth(): LibraryHealth {
       const books = statements.listBooks.all().map((row) => ({ ...row, authors: JSON.parse(row.authors_json) as string[] }));
+      const authors = statements.listAuthors.all();
+      const swappedBooks = findSwappedBooks(books, authors.map((author) => author.name));
       return {
         bookCount: statements.countBooks.get()?.count ?? 0,
         invalidFiles: statements.listInvalidFiles.all().map((row) => ({
@@ -271,6 +330,8 @@ export function createLibraryHealthQueries(database: LibraryDatabase) {
         similarAuthors: findSimilarAuthors(),
         authorlessBooks: findAuthorlessBooks(books),
         probableDuplicates: findProbableDuplicates(books),
+        authorFixes: findAuthorFixes(authors, swappedBooks),
+        swappedBooks,
       };
     },
   };

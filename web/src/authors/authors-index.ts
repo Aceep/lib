@@ -1,4 +1,5 @@
-export type AuthorEntry = { name: string; bookCount: number };
+/** `sortName` is the family name first ("herbert frank"), as the server orders authors; `listName` is "Herbert, Frank". */
+export type AuthorEntry = { name: string; bookCount: number; sortName?: string; listName?: string };
 export type AuthorGroup = { letter: string; authors: AuthorEntry[] };
 
 const OTHER_LETTER = "#";
@@ -18,11 +19,14 @@ export function letterOf(name: string): string {
   return /\p{L}/u.test(first) ? first : OTHER_LETTER;
 }
 
-/** Keeps the given order inside each group (the server already sorts by family name) and puts "#" last. */
+/**
+ * Groups by the initial of the family name ("Frank Herbert" under H). Keeps the given order inside each group
+ * (the server already sorts by family name) and puts "#" last.
+ */
 export function groupAuthorsByLetter(authors: AuthorEntry[]): AuthorGroup[] {
   const groups = new Map<string, AuthorEntry[]>();
   for (const author of authors) {
-    const letter = letterOf(author.name);
+    const letter = letterOf(author.sortName ?? author.name);
     const group = groups.get(letter);
     if (group) {
       group.push(author);

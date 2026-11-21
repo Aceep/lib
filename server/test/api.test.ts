@@ -105,17 +105,17 @@ describe("GET /api/books", () => {
     expect(titles.at(-1)).toBe("Zazie");
   });
 
-  it("sorts accented author names alongside unaccented ones", async () => {
-    await writeBook({ file: "ete.epub", title: "Été", authors: ["Émile Zola"] }, new Date(Date.UTC(2026, 5, 1)));
+  it("sorts authors by family name, accented ones alongside unaccented ones", async () => {
+    await writeBook({ file: "ete.epub", title: "Été", authors: ["Jean Échenoz"] }, new Date(Date.UTC(2026, 5, 1)));
     await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
 
     const response = await app.inject({ method: "GET", url: "/api/facets" });
 
     expect(response.json<{ authors: { name: string }[] }>().authors.map((author) => author.name)).toEqual([
+      "Jean Échenoz",
       "Annie Ernaux",
-      "Émile Zola",
-      "Frank Herbert",
       "Neil Gaiman",
+      "Frank Herbert",
       "Terry Pratchett",
     ]);
   });
@@ -220,15 +220,15 @@ describe("GET /api/books", () => {
 });
 
 describe("GET /api/facets", () => {
-  it("counts books per author and per language", async () => {
+  it("counts books per author and per language, authors by family name", async () => {
     const response = await app.inject({ method: "GET", url: "/api/facets" });
 
     expect(response.json()).toEqual({
       authors: [
-        { name: "Annie Ernaux", bookCount: 2 },
-        { name: "Frank Herbert", bookCount: 2 },
-        { name: "Neil Gaiman", bookCount: 1 },
-        { name: "Terry Pratchett", bookCount: 1 },
+        { name: "Annie Ernaux", bookCount: 2, sortName: "ernaux annie", listName: "Ernaux, Annie" },
+        { name: "Neil Gaiman", bookCount: 1, sortName: "gaiman neil", listName: "Gaiman, Neil" },
+        { name: "Frank Herbert", bookCount: 2, sortName: "herbert frank", listName: "Herbert, Frank" },
+        { name: "Terry Pratchett", bookCount: 1, sortName: "pratchett terry", listName: "Pratchett, Terry" },
       ],
       languages: [
         { code: "en", bookCount: 3 },

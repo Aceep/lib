@@ -1,3 +1,4 @@
+import { authorListName, authorSortKey } from "../admin/author-cleanup.js";
 import type { LibraryDatabase } from "../db/database.js";
 
 export type BookSort = "relevance" | "title" | "recent";
@@ -42,7 +43,8 @@ export type BookDetails = BookSummary & {
 };
 
 export type CatalogFacets = {
-  authors: { name: string; bookCount: number }[];
+  /** Ordered by `sortName`, the family name first ("herbert frank"); `listName` is how an index shows it ("Herbert, Frank"). */
+  authors: { name: string; bookCount: number; sortName: string; listName: string }[];
   languages: { code: string; bookCount: number }[];
   /** Most populated first. */
   genres: { name: string; bookCount: number }[];
@@ -217,7 +219,11 @@ export function createCatalogQueries(database: LibraryDatabase) {
 
     getFacets(): CatalogFacets {
       return {
-        authors: authorFacetStatement.all().map((row) => ({ name: row.name, bookCount: row.book_count })),
+        // By family name, the way a bookshop shelves them: "Frank Herbert" sits at H.
+        authors: authorFacetStatement
+          .all()
+          .map((row) => ({ name: row.name, bookCount: row.book_count, sortName: authorSortKey(row.name), listName: authorListName(row.name) }))
+          .sort((left, right) => left.sortName.localeCompare(right.sortName, "fr") || left.name.localeCompare(right.name, "fr")),
         languages: languageFacetStatement.all().map((row) => ({ code: row.language, bookCount: row.book_count })),
         genres: genreFacetStatement.all().map((row) => ({ name: row.name, bookCount: row.book_count })),
       };
