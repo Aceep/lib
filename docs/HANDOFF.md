@@ -40,10 +40,16 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
      `data/doublons-a-deplacer.txt`).
   3. Rapport groupe par groupe avec une proposition de fichier à garder ; aucune modification sans ma validation.
      Déplacer les doublons dans un dossier `_doublons` sur MEGA plutôt que les supprimer.
-     **Prêt, en attente de validation** : `rclone move mega:Library mega:_doublons --files-from data/doublons-a-deplacer.txt`
-     (le `--dry-run` passe : 329 déplacements). Points à trancher avant : les 19 groupes à écart de taille > 10 % listés
-     en tête du rapport, et le doublon NFC/NFD de « Le ministère du futur » (deux fichiers de même nom sur MEGA, un seul
-     en local : à traiter via l'interface MEGA ou `rclone dedupe`).
+     **Fait le 2026-11-21** : `rclone move mega:Library mega:_doublons --files-from data/doublons-a-deplacer.txt`
+     (329 déplacements côté serveur, 519 Mio, 0 erreur) + `rclone moveto` du jumeau NFC de « Le ministère du futur
+     (Z-Library) », renommé `… (2).epub` dans `_doublons`. Bilan : `mega:Library` 915 → **585 EPUB**, `mega:_doublons`
+     330 fichiers, et `npm run duplicates` ne trouve plus rien sur la copie locale resynchronisée.
+     Réversible : `rclone move mega:_doublons mega:Library`. Les 19 groupes à écart de taille > 10 % ont été tranchés
+     « on garde le plus gros » ; si une version déplacée était la bonne, elle est dans `_doublons` au même chemin.
+     Reste à décider quand vider `_doublons` (à la main, dans l'interface MEGA).
+- `rclone sync mega:Library books/` signale `Graphics/Invincible intégrale` et `Graphics/zzImpénétrable` en
+  « Duplicate directory found in source » (deux dossiers de même nom sur MEGA) : sans effet sur les EPUB, à nettoyer
+  dans l'interface MEGA si ça gêne.
 - Au passage : `Books/I/Nemirovsky Irene/IRENE_NEMIROVSKY__LE_BAL.epub` est refusé par notre lecteur zip
   (`invalid relative path: OPS/../cover.jpg`) ; l'indexeur l'ignorera aussi. À voir si on assouplit ou si on répare le fichier.
 - Attention : le quota de transfert du compte MEGA gratuit limite la synchro complète.
