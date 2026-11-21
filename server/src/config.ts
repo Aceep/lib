@@ -1,0 +1,38 @@
+import path from "node:path";
+
+export type ServerConfig = {
+  port: number;
+  host: string;
+  booksDirectory: string;
+  dataDirectory: string;
+  databasePath: string;
+  coversDirectory: string;
+};
+
+function directoryFromEnvironment(environment: NodeJS.ProcessEnv, name: string, fallback: string): string {
+  return path.resolve(environment[name]?.trim() || fallback);
+}
+
+function parsePort(rawPort: string | undefined): number {
+  if (!rawPort) {
+    return 3000;
+  }
+  const port = Number(rawPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`PORT must be an integer between 1 and 65535, got "${rawPort}"`);
+  }
+  return port;
+}
+
+export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ServerConfig {
+  const dataDirectory = directoryFromEnvironment(environment, "DATA_DIR", "data");
+  return {
+    port: parsePort(environment.PORT),
+    // Local-only by default: exposing the catalog is an explicit decision.
+    host: environment.HOST?.trim() || "127.0.0.1",
+    booksDirectory: directoryFromEnvironment(environment, "BOOKS_DIR", "books"),
+    dataDirectory,
+    databasePath: path.join(dataDirectory, "library.sqlite"),
+    coversDirectory: path.join(dataDirectory, "covers"),
+  };
+}
