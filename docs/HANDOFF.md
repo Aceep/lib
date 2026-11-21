@@ -35,8 +35,17 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
      via `server/src/epub/read-epub-metadata.ts`) pour repérer le même livre sous deux fichiers différents.
      **Fait** (lecture seule) : `npm run duplicates -w server [-- --json] [dossier]` (`server/src/duplicates/find-duplicates.ts`).
      Fichier proposé à garder : sans marqueur de copie (`(1)`, `copie`, `copy`), puis le plus gros, puis le chemin le plus court.
+     Lancé le 2026-11-21 après `rclone copy mega:Library books/ --include "*.epub"` : 914 EPUB, 315 groupes, 329 fichiers
+     en trop (545 Mo). Rapport : `docs/doublons-mega-passe2.md` (via `scripts/mega-pass2-report.mjs`, qui écrit aussi
+     `data/doublons-a-deplacer.txt`).
   3. Rapport groupe par groupe avec une proposition de fichier à garder ; aucune modification sans ma validation.
-     Déplacer les doublons dans un dossier `_doublons` sur MEGA plutôt que les supprimer (à faire : à partir du `--json`).
+     Déplacer les doublons dans un dossier `_doublons` sur MEGA plutôt que les supprimer.
+     **Prêt, en attente de validation** : `rclone move mega:Library mega:_doublons --files-from data/doublons-a-deplacer.txt`
+     (le `--dry-run` passe : 329 déplacements). Points à trancher avant : les 19 groupes à écart de taille > 10 % listés
+     en tête du rapport, et le doublon NFC/NFD de « Le ministère du futur » (deux fichiers de même nom sur MEGA, un seul
+     en local : à traiter via l'interface MEGA ou `rclone dedupe`).
+- Au passage : `Books/I/Nemirovsky Irene/IRENE_NEMIROVSKY__LE_BAL.epub` est refusé par notre lecteur zip
+  (`invalid relative path: OPS/../cover.jpg`) ; l'indexeur l'ignorera aussi. À voir si on assouplit ou si on répare le fichier.
 - Attention : le quota de transfert du compte MEGA gratuit limite la synchro complète.
 
 ## Plus tard
