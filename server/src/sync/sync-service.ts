@@ -68,7 +68,8 @@ function toSyncRun(row: SyncRunRow): SyncRun {
 }
 
 async function pullFromRemote(runCommand: CommandRunner, remote: string, booksDirectory: string): Promise<string | null> {
-  const result = await runCommand("rclone", ["sync", remote, booksDirectory]);
+  // Only EPUBs are indexed; the remote also holds comics and PDFs that would cost gigabytes of MEGA quota.
+  const result = await runCommand("rclone", ["sync", remote, booksDirectory, "--include", "*.epub"]);
   if (result.exitCode === 0) {
     return null;
   }

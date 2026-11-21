@@ -72,7 +72,7 @@ describe("sync service", () => {
 
     await runToCompletion(createSync(runner));
 
-    expect(calls).toEqual([{ command: "rclone", args: ["sync", "mega:Livres", booksDirectory] }]);
+    expect(calls).toEqual([{ command: "rclone", args: ["sync", "mega:Livres", booksDirectory, "--include", "*.epub"] }]);
   });
 
   it("indexes the books pulled by rclone and reports a success", async () => {
