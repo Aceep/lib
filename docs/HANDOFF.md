@@ -64,8 +64,11 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
 - Pièges rencontrés, à garder en tête : `/mnt/c` (NTFS) est insensible à la casse, donc un `mkdir` sur « R. F. Kuang »
   tombe dans « R. f. Kuang » ; MEGA accepte deux dossiers dont le nom ne diffère que par la forme Unicode (NFC/NFD) et
   `rclone moveto` réutilise un dossier NFD existant. `proposeName` sort du NFC pour éviter d'en recréer.
-- Restes à trier à la main : `Books/_À identifier/` (2 EPUB sans métadonnées), les ~600 fichiers `.jpg`/`.opf`
-  (fiches Calibre) toujours sous leurs anciens noms dans `Books/`, inutiles pour l'appli.
+- Les 598 fiches Calibre (`.jpg`/`.opf`) de `Books/` ont été supprimées le 2026-11-21 (`rclone delete`, donc dans la
+  corbeille MEGA). `Books/` ne contient plus que les 580 EPUB, dans 426 dossiers auteurs.
+- Restes à trier à la main : `Books/_À identifier/` (2 EPUB sans métadonnées) ; hors `Books/`, `Library/Other/`
+  (12 PDF, 1 RAR, 2 `.json`) et `Library/Graphics/` (BD et mangas en `.cbz`/`.cbr`, avec quelques doublons de même nom
+  MEGA) n'ont pas été touchés — l'appli n'indexe que les EPUB.
 - Rappel : la barre de recherche de l'appli lit titre/auteurs/description des métadonnées, pas les noms de fichiers.
 - Bug repéré à corriger : le lecteur OPF ne décode pas les entités HTML (`Tr&#xE9;vidic`), ce qui pollue la recherche.
   `decodeEntities` dans `file-naming.ts` est un palliatif local au nommage ; la vraie correction est dans `server/src/epub/opf.ts`.
