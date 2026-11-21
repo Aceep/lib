@@ -1,8 +1,8 @@
 import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
-import { correctBook, fetchLibraryHealth, mergeAuthors } from "../api/client.js";
-import type { AuthorlessBook, MissingField, SyncRun } from "../api/types.js";
-import { authorsLabel, countLabel, dateTimeLabel, fileSizeLabel } from "../shared/format.js";
+import { correctBook, fetchLibraryHealth, fetchSeriesSuggestions, mergeAuthors, setBooksLanguage } from "../api/client.js";
+import type { AuthorlessBook, LibraryHealth, MissingField, SeriesSuggestion, SyncRun } from "../api/types.js";
+import { authorsLabel, countLabel, dateTimeLabel, fileSizeLabel, languageLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
 
@@ -149,9 +149,166 @@ function AuthorlessBooks({ books, onChanged }: { books: AuthorlessBook[]; onChan
   );
 }
 
+/**
+ * Series read in the titles themselves ("L'Assassin Royal-10-Serments et Deuils"). Accepted one series at a
+ * time, or all at once; the title can lose the series and volume number it no longer needs to carry.
+ */
+function SeriesSuggestions({ suggestions, onChanged }: { suggestions: SeriesSuggestion[]; onChanged: (message: string) => void }) {
+  const [isBusy, setIsBusy] = useState(false);
+  const [shortenTitles, setShortenTitles] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const groups = new Map<string, SeriesSuggestion[]>();
+  for (const suggestion of suggestions) {
+    groups.set(suggestion.series, [...(groups.get(suggestion.series) ?? []), suggestion]);
+  }
+
+  async function apply(targets: SeriesSuggestion[]) {
+    setIsBusy(true);
+    setErrorMessage(null);
+    let done = 0;
+    try {
+      for (const suggestion of targets) {
+        await correctBook(suggestion.bookId, {
+          title: shortenTitles && suggestion.shorterTitle !== null ? suggestion.shorterTitle : suggestion.title,
+          authors: suggestion.authors,
+          series: suggestion.series,
+          seriesIndex: suggestion.seriesIndex,
+        });
+        done++;
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+    setIsBusy(false);
+    if (done > 0) {
+      onChanged(`${countLabel(done, "livre rangé", "livres rangés")} dans sa série.`);
+    }
+  }
+
+  return (
+    <>
+      <p className="merge-actions">
+        <label>
+          <input type="checkbox" checked={shortenTitles} onChange={(event) => setShortenTitles(event.target.checked)} /> Retirer aussi la série et
+          le numéro du titre
+        </label>
+        <button type="button" disabled={isBusy} onClick={() => void apply(suggestions)}>
+          Tout accepter ({suggestions.length})
+        </button>
+      </p>
+      {errorMessage ? (
+        <p className="error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
+      <ul className="record-list">
+        {[...groups].map(([series, volumes]) => (
+          <li key={series}>
+            <span className="record-main">
+              <strong>{series}</strong>
+              <span className="record-secondary"> — {authorsLabel(volumes[0]?.authors ?? [])}</span>
+            </span>
+            <ul className="suggestion-volumes">
+              {volumes.map((volume) => (
+                <li key={volume.bookId}>
+                  {volume.seriesIndex !== null ? `Tome ${volume.seriesIndex} : ` : null}
+                  <Link to={`/books/${volume.bookId}`}>{volume.title}</Link>
+                  {shortenTitles && volume.shorterTitle !== null ? <span className="record-secondary"> → « {volume.shorterTitle} »</span> : null}
+                  {volume.source === "wikidata" ? <span className="record-secondary"> (d'après Wikidata)</span> : null}
+                </li>
+              ))}
+            </ul>
+            <span className="merge-actions">
+              <button type="button" disabled={isBusy} onClick={() => void apply(volumes)}>
+                Accepter {volumes.length > 1 ? `ces ${volumes.length} tomes` : "ce tome"}
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+const COMMON_LANGUAGES = ["fr", "en", "es", "it", "de"];
+
+/** EPUBs that declare no language: tick the ones written in the chosen language and file them at once. */
+function BooksWithoutLanguage({ books, onChanged }: { books: LibraryHealth["incompleteBooks"]; onChanged: (message: string) => void }) {
+  const [language, setLanguage] = useState("fr");
+  const [unchecked, setUnchecked] = useState<Set<number>>(new Set());
+  const [isBusy, setIsBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const selected = books.filter((book) => !unchecked.has(book.id));
+
+  function toggle(bookId: number) {
+    const next = new Set(unchecked);
+    if (!next.delete(bookId)) {
+      next.add(bookId);
+    }
+    setUnchecked(next);
+  }
+
+  async function handleApply() {
+    setIsBusy(true);
+    setErrorMessage(null);
+    try {
+      const result = await setBooksLanguage(
+        selected.map((book) => book.id),
+        language,
+      );
+      onChanged(`${countLabel(result.changedBooks, "livre classé", "livres classés")} en ${languageLabel(language).toLowerCase()}.`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+    setIsBusy(false);
+  }
+
+  return (
+    <>
+      <p className="merge-actions">
+        <label>
+          Langue des livres cochés{" "}
+          <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+            {COMMON_LANGUAGES.map((code) => (
+              <option key={code} value={code}>
+                {languageLabel(code)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" disabled={isBusy || selected.length === 0} onClick={() => void handleApply()}>
+          Classer {countLabel(selected.length, "livre")}
+        </button>
+      </p>
+      {errorMessage ? (
+        <p className="error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
+      <ul className="record-list">
+        {books.map((book) => (
+          <li key={book.id}>
+            <label className="record-main">
+              <input type="checkbox" checked={!unchecked.has(book.id)} onChange={() => toggle(book.id)} /> {book.title}
+              <span className="record-secondary"> — {authorsLabel(book.authors)}</span>
+            </label>
+            <Link className="record-secondary" to={`/books/${book.id}`}>
+              Voir la fiche
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void }) {
   useDocumentTitle("Santé de la bibliothèque");
   const health = useAsync((signal) => fetchLibraryHealth(signal), []);
+  const series = useAsync((signal) => fetchSeriesSuggestions(signal), []);
+  const [seriesMessage, setSeriesMessage] = useState<string | null>(null);
+  const [languageMessage, setLanguageMessage] = useState<string | null>(null);
   const [mergeMessage, setMergeMessage] = useState<string | null>(null);
   const [authorMessage, setAuthorMessage] = useState<string | null>(null);
 
@@ -166,6 +323,8 @@ export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void 
     return null;
   }
   const { bookCount, invalidFiles, incompleteBooks, similarAuthors, authorlessBooks, probableDuplicates, syncRuns } = health.data;
+  const booksWithoutLanguage = incompleteBooks.filter((book) => book.missing.includes("language"));
+  const seriesSuggestions = series.data ?? [];
 
   return (
     <>
@@ -222,6 +381,40 @@ export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void 
             />
           ))}
         </ul>
+      </Section>
+
+      {seriesMessage ? (
+        <p className="form-success" role="status">
+          {seriesMessage}
+        </p>
+      ) : null}
+      <Section title="Séries à renseigner" count={seriesSuggestions.length} emptyText="Aucun titre ne laisse deviner une série qui ne soit déjà renseignée.">
+        <SeriesSuggestions
+          suggestions={seriesSuggestions}
+          onChanged={(message) => {
+            setSeriesMessage(message);
+            series.reload();
+            health.reload();
+            onLibraryChanged();
+          }}
+        />
+      </Section>
+
+      {languageMessage ? (
+        <p className="form-success" role="status">
+          {languageMessage}
+        </p>
+      ) : null}
+      <Section title="Livres sans langue" count={booksWithoutLanguage.length} emptyText="Chaque livre a une langue.">
+        <BooksWithoutLanguage
+          key={booksWithoutLanguage.map((book) => book.id).join("-")}
+          books={booksWithoutLanguage}
+          onChanged={(message) => {
+            setLanguageMessage(message);
+            health.reload();
+            onLibraryChanged();
+          }}
+        />
       </Section>
 
       <Section title="Livres en double probable" count={probableDuplicates.length} emptyText="Aucun livre n'apparaît deux fois.">

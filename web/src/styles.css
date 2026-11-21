@@ -1136,6 +1136,19 @@ button:disabled {
   font-size: 0.85rem;
 }
 
+.suggestion-volumes {
+  width: 100%;
+  margin: 0.25rem 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+
+.record-list .suggestion-volumes li {
+  display: list-item;
+  padding: 0.1rem 0;
+  border: 0;
+}
+
 .admin-tabs {
   display: flex;
   flex-wrap: wrap;

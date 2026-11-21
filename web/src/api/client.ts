@@ -9,6 +9,7 @@ import type {
   BookCorrection,
   ActivityPage,
   LibraryHealth,
+  SeriesSuggestion,
   UploadSubmission,
   BookDetails, BookPage, BookSort, CatalogFacets, SyncRun, SyncStatus, UploadPreview, UploadResult, User, UserRole } from "./types.js";
 
@@ -231,6 +232,15 @@ export async function unfollowAuthor(authorId: number): Promise<void> {
 /** `null` hands the work back to automatic title matching. */
 export async function decideWork(workId: number, decision: WorkDecision | null): Promise<void> {
   await request(`/api/admin/missing/works/${workId}`, jsonBody("PUT", { decision }));
+}
+
+export function fetchSeriesSuggestions(signal?: AbortSignal): Promise<SeriesSuggestion[]> {
+  return requestJson("/api/admin/series-suggestions", { signal: signal ?? null });
+}
+
+/** Files the given books under one language ("fr"). */
+export function setBooksLanguage(bookIds: number[], language: string): Promise<{ changedBooks: number }> {
+  return requestJson("/api/admin/books/language", jsonBody("POST", { bookIds, language }));
 }
 
 export function fetchLibraryHealth(signal?: AbortSignal): Promise<LibraryHealth> {

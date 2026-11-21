@@ -47,6 +47,7 @@ type OverrideRow = {
   has_series: number;
   series: string | null;
   series_index: number | null;
+  language: string | null;
 };
 
 type StoredBookRow = {
@@ -172,7 +173,7 @@ export function createLibraryStore(database: LibraryDatabase) {
     ),
     deleteInvalidFile: database.prepare<[string]>("DELETE FROM invalid_files WHERE file_path = ?"),
     getOverride: database.prepare<[string], OverrideRow>(
-      "SELECT title, authors_json, has_series, series, series_index FROM book_overrides WHERE content_hash = ?",
+      "SELECT title, authors_json, has_series, series, series_index, language FROM book_overrides WHERE content_hash = ?",
     ),
     upsertOverride: database.prepare<{
       contentHash: string;
@@ -188,6 +189,11 @@ export function createLibraryStore(database: LibraryDatabase) {
        ON CONFLICT (content_hash) DO UPDATE SET title = excluded.title, authors_json = excluded.authors_json, has_series = 1,
          series = excluded.series, series_index = excluded.series_index, updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
     ),
+    upsertLanguageOverride: database.prepare<[string, string, string, string | null]>(
+      `INSERT INTO book_overrides (content_hash, language, updated_at, updated_by) VALUES (?, ?, ?, ?)
+       ON CONFLICT (content_hash) DO UPDATE SET language = excluded.language, updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
+    ),
+    setLanguage: database.prepare<[string, string, number]>("UPDATE books SET language = ?, updated_at = ? WHERE id = ?"),
     setSeries: database.prepare<[string | null, number | null, number]>(
       "UPDATE books SET series = ?, series_index = ?, series_checked = 1 WHERE id = ?",
     ),
@@ -215,6 +221,7 @@ export function createLibraryStore(database: LibraryDatabase) {
       authors: override.authors_json ? (JSON.parse(override.authors_json) as string[]) : record.authors,
       series: override.has_series ? override.series : record.series,
       seriesIndex: override.has_series ? override.series_index : record.seriesIndex,
+      language: override.language ?? record.language,
     };
   }
 
@@ -382,6 +389,13 @@ export function createLibraryStore(database: LibraryDatabase) {
         now,
       });
       replaceAuthorsAndSearchEntry(bookId, { ...correction, description: statements.getSearchDescription.get(bookId)?.description ?? null });
+    }),
+
+    /** Files the book under a language, and remembers it against the file's hash like any other correction. */
+    setLanguage: database.transaction((bookId: number, contentHash: string, language: string, updatedBy: string | null): void => {
+      const now = new Date().toISOString();
+      statements.upsertLanguageOverride.run(contentHash, language, now, updatedBy);
+      statements.setLanguage.run(language, now, bookId);
     }),
 
     setCoverFile(bookId: number, coverFile: string | null): void {

@@ -8,6 +8,7 @@ import { type ActivityEntry, createActivityLog } from "../src/activity/activity-
 import { createBookAdmin } from "../src/admin/book-admin.js";
 import { createLibraryStatsQueries, type LibraryStats } from "../src/admin/library-stats.js";
 import { authorFromFilePath, authorIdentityKey, createLibraryHealthQueries, type LibraryHealth } from "../src/admin/library-health.js";
+import { seriesFromTitle } from "../src/admin/series-from-title.js";
 import { buildApp } from "../src/api/build-app.js";
 import { createAuthService } from "../src/auth/auth-service.js";
 import { createCatalogQueries } from "../src/catalog/catalog-queries.js";
@@ -454,6 +455,91 @@ describe("GET /api/admin/health", () => {
     const { probableDuplicates } = createLibraryHealthQueries(database).getHealth();
 
     expect(probableDuplicates.map((group) => group.books.map((book) => book.filePath).sort())).toEqual([["a.epub", "b.epub"]]);
+  });
+});
+
+describe("seriesFromTitle", () => {
+  it("reads the series, the volume and the book's own title", () => {
+    expect(seriesFromTitle("L'Assassin Royal-10-Serments et Deuils")).toEqual({ series: "L'Assassin Royal", seriesIndex: 10, title: "Serments et Deuils" });
+    expect(seriesFromTitle("L'assassin royal [001] – L'apprenti assassin")).toEqual({ series: "L'assassin royal", seriesIndex: 1, title: "L'apprenti assassin" });
+    expect(seriesFromTitle("Dune, 03. Les enfants de Dune")).toEqual({ series: "Dune", seriesIndex: 3, title: "Les enfants de Dune" });
+    expect(seriesFromTitle("Le Livre des Martyrs T10 Le dieu estropié")).toEqual({ series: "Le Livre des Martyrs", seriesIndex: 10, title: "Le dieu estropié" });
+    expect(seriesFromTitle("Too Like the Lightning (Terra Ignota Book 1)")).toEqual({ series: "Terra Ignota", seriesIndex: 1, title: "Too Like the Lightning" });
+    expect(seriesFromTitle("Histoire intime de la Ve République (Tome 1) - Le sursaut (French Edition)")).toEqual({
+      series: "Histoire intime de la Ve République",
+      seriesIndex: 1,
+      title: "Le sursaut",
+    });
+  });
+
+  it("keeps the title when the volume number is all that follows", () => {
+    expect(seriesFromTitle("La Guerre et la Paix - Tome I")).toEqual({ series: "La Guerre et la Paix", seriesIndex: 1, title: null });
+    expect(seriesFromTitle("Endymion 2")).toEqual({ series: "Endymion", seriesIndex: 2, title: null });
+    expect(seriesFromTitle("Les annales de la Compagnie noire (L'Intégrale - Tome 4)")).toMatchObject({ series: "Les annales de la Compagnie noire", seriesIndex: 4 });
+  });
+
+  it("does not take a number in a title for a volume", () => {
+    for (const title of ["1984", "Métro 2033", "Article 353 du code pénal", "2023 - Tsunami", "10 Sharko", "1 - Binding 13: Boys of Tommen", "Dune"]) {
+      expect(seriesFromTitle(title), title).toBeNull();
+    }
+  });
+});
+
+describe("GET /api/admin/series-suggestions", () => {
+  it("proposes a series for books that have none, under one spelling per series", async () => {
+    await writeBook(path.join(booksDirectory, "a.epub"), "L'Assassin Royal-10-Serments et Deuils", ["Robin Hobb"]);
+    await writeBook(path.join(booksDirectory, "b.epub"), "L'Assassin Royal-11-Le Dragon des glaces", ["Robin Hobb"]);
+    await writeBook(path.join(booksDirectory, "c.epub"), "L'assassin royal [001] – L'apprenti assassin", ["Robin Hobb"]);
+    await writeBook(path.join(booksDirectory, "d.epub"), "Fondation 2 - Seconde Fondation", ["Isaac Asimov"], CALIBRE_SERIES("Fondation", 2));
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+
+    const response = await app.inject({ method: "GET", url: "/api/admin/series-suggestions", headers: await adminSession() });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ series: string; seriesIndex: number; shorterTitle: string }[]>().map((s) => [s.series, s.seriesIndex, s.shorterTitle])).toEqual([
+      ["L'Assassin Royal", 1, "L'apprenti assassin"],
+      ["L'Assassin Royal", 10, "Serments et Deuils"],
+      ["L'Assassin Royal", 11, "Le Dragon des glaces"],
+    ]);
+  });
+
+  it("falls back on what the bibliography of a followed author says", async () => {
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+    const dune = bookId("Dune");
+
+    const suggestions = createLibraryHealthQueries(database).getSeriesSuggestions([{ bookId: dune, series: "Cycle de Dune", seriesIndex: 1 }]);
+
+    expect(suggestions).toMatchObject([{ bookId: dune, series: "Cycle de Dune", seriesIndex: 1, shorterTitle: null, source: "wikidata" }]);
+  });
+});
+
+describe("POST /api/admin/books/language", () => {
+  it("files several books under a language, and keeps it when they are indexed again", async () => {
+    await writeBook(path.join(booksDirectory, "a.epub"), "Sans langue", ["A"]);
+    await writeBook(path.join(booksDirectory, "b.epub"), "Indéterminée", ["B"], "<dc:language>und</dc:language>");
+    await writeBook(path.join(booksDirectory, "c.epub"), "Trois lettres", ["C"], "<dc:language>fre</dc:language>");
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+    const languages = () => database.prepare("SELECT title, language FROM books WHERE title != 'Dune' ORDER BY title").all();
+    expect(languages()).toEqual([
+      { title: "Indéterminée", language: null },
+      { title: "Sans langue", language: null },
+      { title: "Trois lettres", language: "fr" },
+    ]);
+    const admin = await adminSession();
+    const setLanguage = (headers: Session, bookIds: number[], language: string) =>
+      app.inject({ method: "POST", url: "/api/admin/books/language", headers, payload: { bookIds, language } });
+
+    expect((await setLanguage(await sessionOf("bob"), [bookId("Sans langue")], "fr")).statusCode).toBe(403);
+    expect((await setLanguage(admin, [bookId("Sans langue")], "f1")).statusCode).toBe(400);
+    const response = await setLanguage(admin, [bookId("Sans langue"), bookId("Indéterminée")], "FR");
+
+    expect(response.json()).toEqual({ changedBooks: 2 });
+    await reindexEverything();
+    expect(languages()).toEqual([
+      { title: "Indéterminée", language: "fr" },
+      { title: "Sans langue", language: "fr" },
+      { title: "Trois lettres", language: "fr" },
+    ]);
   });
 });
 

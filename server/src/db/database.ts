@@ -196,6 +196,18 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX book_requests_status ON book_requests (status);
   `,
+  `
+  -- A language set in the app; NULL means "as read from the file", like the other columns.
+  ALTER TABLE book_overrides ADD COLUMN language TEXT;
+
+  -- Languages indexed before three-letter codes and "undetermined" were normalised.
+  UPDATE books SET language = 'fr' WHERE language IN ('fre', 'fra');
+  UPDATE books SET language = 'en' WHERE language = 'eng';
+  UPDATE books SET language = 'it' WHERE language = 'ita';
+  UPDATE books SET language = 'es' WHERE language = 'spa';
+  UPDATE books SET language = 'de' WHERE language IN ('deu', 'ger');
+  UPDATE books SET language = NULL WHERE language IN ('und', 'zxx', 'mul', 'unknown', '');
+  `,
 ];
 
 function migrate(database: LibraryDatabase): void {

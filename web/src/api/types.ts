@@ -245,6 +245,18 @@ export type AuthorlessBook = {
   suggestedAuthor: string | null;
 };
 
+/** A series a book seems to belong to, read in its title or in the bibliography of a followed author. */
+export type SeriesSuggestion = {
+  bookId: number;
+  title: string;
+  authors: string[];
+  series: string;
+  seriesIndex: number | null;
+  /** The title without the series and volume number; null when it stays as it is. */
+  shorterTitle: string | null;
+  source: "title" | "wikidata";
+};
+
 export type LibraryHealth = {
   bookCount: number;
   invalidFiles: { filePath: string; fileSize: number; error: string; detectedAt: string }[];

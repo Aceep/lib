@@ -110,13 +110,32 @@ function toPlainText(html: string): string {
     .trim();
 }
 
-// Filters group books by primary language ("fr-FR" and "fr" are the same shelf).
-function normalizeLanguage(language: string | null): string | null {
+// ISO 639-2 codes some tools write where EPUB expects the two-letter one.
+const THREE_LETTER_LANGUAGES: Record<string, string> = {
+  fre: "fr",
+  fra: "fr",
+  eng: "en",
+  ita: "it",
+  spa: "es",
+  deu: "de",
+  ger: "de",
+  por: "pt",
+  nld: "nl",
+  dut: "nl",
+};
+// "Undetermined", "no linguistic content", "multiple": none of them is a language to file a book under.
+const NOT_A_LANGUAGE = new Set(["und", "zxx", "mul", "unknown"]);
+
+// Filters group books by primary language ("fr-FR", "fre" and "fr" are the same shelf).
+export function normalizeLanguage(language: string | null): string | null {
   if (!language) {
     return null;
   }
-  const primarySubtag = language.trim().toLowerCase().split(/[-_]/)[0];
-  return primarySubtag || null;
+  const primarySubtag = language.trim().toLowerCase().split(/[-_]/)[0] ?? "";
+  if (primarySubtag === "" || NOT_A_LANGUAGE.has(primarySubtag)) {
+    return null;
+  }
+  return THREE_LETTER_LANGUAGES[primarySubtag] ?? primarySubtag;
 }
 
 function uniqueAuthors(creators: unknown[]): string[] {

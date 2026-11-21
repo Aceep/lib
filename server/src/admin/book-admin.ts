@@ -76,6 +76,19 @@ export function createBookAdmin(options: BookAdminOptions) {
     /** Changes what the catalog shows. The EPUB file and its name are left as they are. */
     correct,
 
+    /** Files the given books under one language; for the EPUBs that declare none, or a wrong one. */
+    async setLanguage(bookIds: number[], language: string, editor: string): Promise<StoredBook[]> {
+      const code = language.trim().toLowerCase();
+      if (!/^[a-z]{2,3}$/.test(code)) {
+        throw new BookAdminError(400, "invalid_metadata", "La langue est un code de deux ou trois lettres, par exemple « fr »");
+      }
+      const changed = [...new Set(bookIds)].map(getBook);
+      for (const book of changed) {
+        store.setLanguage(book.bookId, await contentHashOf(book), code, editor);
+      }
+      return changed;
+    },
+
     /**
      * Gives every book credited to one of `from` the single name `into`: "Rowling, J.K." and "J. K. Rowling"
      * become one author. `into` may be a name that does not exist yet, which makes this a rename.

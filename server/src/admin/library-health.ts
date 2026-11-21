@@ -3,6 +3,7 @@ import type { LibraryDatabase } from "../db/database.js";
 import { toSortKey } from "../db/sort-key.js";
 import { parseAuthor } from "../library/file-naming.js";
 import { titleKey } from "../missing/title-key.js";
+import { seriesFromTitle } from "./series-from-title.js";
 
 export type InvalidFile = {
   filePath: string;
@@ -37,6 +38,22 @@ export type AuthorlessBook = {
 export type ProbableDuplicates = {
   books: { id: number; title: string; authors: string[]; filePath: string; fileSize: number }[];
 };
+
+/** A series the book seems to belong to, for an admin to accept. */
+export type SeriesSuggestion = {
+  bookId: number;
+  title: string;
+  authors: string[];
+  series: string;
+  seriesIndex: number | null;
+  /** The title once the series and volume number are taken out of it; null when it stays as it is. */
+  shorterTitle: string | null;
+  /** title: read in the book's own title; wikidata: from the bibliography of a followed author. */
+  source: "title" | "wikidata";
+};
+
+/** A work of a followed author matched to a library book, as the bibliography sources describe it. */
+export type KnownSeriesWork = { bookId: number; series: string; seriesIndex: number | null };
 
 /** Author names that probably designate one person, e.g. "J.K. Rowling" and "Rowling, J. K.". */
 export type SimilarAuthors = {
@@ -194,6 +211,43 @@ export function createLibraryHealthQueries(database: LibraryDatabase) {
   }
 
   return {
+    /**
+     * Series for the books that have none. One series keeps one spelling: the library's when it already has
+     * that series, else the most common among the suggestions ("L'Assassin Royal", not "L'assassin royal").
+     */
+    getSeriesSuggestions(knownWorks: KnownSeriesWork[] = []): SeriesSuggestion[] {
+      const books = statements.listBooks.all().map((row) => ({ ...row, authors: JSON.parse(row.authors_json) as string[] }));
+      const knownByBook = new Map(knownWorks.map((work) => [work.bookId, work]));
+      const suggestions: SeriesSuggestion[] = [];
+      for (const book of books) {
+        if (book.series) {
+          continue;
+        }
+        const base = { bookId: book.id, title: book.title, authors: book.authors };
+        const fromTitle = seriesFromTitle(book.title);
+        const known = knownByBook.get(book.id);
+        if (fromTitle) {
+          suggestions.push({ ...base, series: fromTitle.series, seriesIndex: fromTitle.seriesIndex, shorterTitle: fromTitle.title, source: "title" });
+        } else if (known) {
+          suggestions.push({ ...base, series: known.series, seriesIndex: known.seriesIndex, shorterTitle: null, source: "wikidata" });
+        }
+      }
+
+      const spellings = new Map<string, Map<string, number>>();
+      const count = (series: string, weight: number) => {
+        const counts = spellings.get(toSortKey(series)) ?? new Map<string, number>();
+        counts.set(series, (counts.get(series) ?? 0) + weight);
+        spellings.set(toSortKey(series), counts);
+      };
+      books.forEach((book) => book.series && count(book.series, 1000));
+      suggestions.forEach((suggestion) => count(suggestion.series, 1));
+      const preferred = (series: string) => [...(spellings.get(toSortKey(series)) ?? [])].sort((left, right) => right[1] - left[1])[0]?.[0] ?? series;
+
+      return suggestions
+        .map((suggestion) => ({ ...suggestion, series: preferred(suggestion.series) }))
+        .sort((left, right) => left.series.localeCompare(right.series, "fr") || (left.seriesIndex ?? 0) - (right.seriesIndex ?? 0));
+    },
+
     getHealth(): LibraryHealth {
       const books = statements.listBooks.all().map((row) => ({ ...row, authors: JSON.parse(row.authors_json) as string[] }));
       return {

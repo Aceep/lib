@@ -112,6 +112,18 @@ const bookCorrectionSchema = {
 
 type MergeAuthorsBody = { from: string[]; into: string };
 
+type BooksLanguageBody = { bookIds: number[]; language: string };
+
+const booksLanguageSchema = {
+  type: "object",
+  required: ["bookIds", "language"],
+  properties: {
+    bookIds: { type: "array", minItems: 1, maxItems: 1000, items: { type: "integer", minimum: 1 } },
+    language: { type: "string", minLength: 2, maxLength: 3 },
+  },
+  additionalProperties: false,
+} as const;
+
 const mergeAuthorsSchema = {
   type: "object",
   required: ["from", "into"],
@@ -369,6 +381,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
       },
     );
 
+    app.post<{ Body: BooksLanguageBody }>("/api/admin/books/language", { schema: { body: booksLanguageSchema } }, async (request) => {
+      const language = request.body.language.trim().toLowerCase();
+      const changed = await books.setLanguage(request.body.bookIds, language, uploadActor(request).username);
+      for (const book of changed) {
+        activity?.record("book_edited", actorOf(request), { bookId: book.bookId, details: { title: book.title, previousTitle: book.title, language } });
+      }
+      return { changedBooks: changed.length };
+    });
+
     app.delete<{ Params: BookParams }>("/api/admin/books/:id", { schema: { params: bookParamsSchema } }, async (request, reply) => {
       const removed = await books.remove(request.params.id);
       activity?.record("book_deleted", actorOf(request), {
@@ -460,6 +481,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   if (health) {
     app.get("/api/admin/health", async () => ({ ...health.getHealth(), syncRuns: sync.listRecentRuns(20) }));
+
+    app.get("/api/admin/series-suggestions", async () => {
+      // Followed authors add what the bibliography sources know of the books already matched to the library.
+      const knownWorks = (missing?.getReport().authors ?? []).flatMap((author) =>
+        author.works.flatMap((work) => (work.series && work.ownedBookId !== null ? [{ bookId: work.ownedBookId, series: work.series, seriesIndex: work.seriesIndex }] : [])),
+      );
+      return health.getSeriesSuggestions(knownWorks);
+    });
   }
 
   if (activity) {
