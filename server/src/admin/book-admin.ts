@@ -76,6 +76,19 @@ export function createBookAdmin(options: BookAdminOptions) {
     /** Changes what the catalog shows. The EPUB file and its name are left as they are. */
     correct,
 
+    /**
+     * Files the given books under one series name, keeping each one's number; `null` takes them out of their
+     * series. Used to give one spelling to a series typed several ways, and to drop a series that is not one.
+     */
+    async setSeries(bookIds: number[], series: string | null, editor: string): Promise<{ series: string | null; changedBooks: number }> {
+      const name = series?.trim() || null;
+      const targets = [...new Set(bookIds)].map(getBook);
+      for (const book of targets) {
+        await correct(book.bookId, { ...book, series: name, seriesIndex: name ? book.seriesIndex : null }, editor);
+      }
+      return { series: name, changedBooks: targets.length };
+    },
+
     /** Files the given books under one language; for the EPUBs that declare none, or a wrong one. */
     async setLanguage(bookIds: number[], language: string, editor: string): Promise<StoredBook[]> {
       const code = language.trim().toLowerCase();

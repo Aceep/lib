@@ -125,6 +125,18 @@ const rewriteAuthorSchema = {
   additionalProperties: false,
 } as const;
 
+type MergeSeriesBody = { from: string[]; into: string | null };
+
+const mergeSeriesSchema = {
+  type: "object",
+  required: ["from", "into"],
+  properties: {
+    from: { type: "array", minItems: 1, maxItems: 50, items: { type: "string", minLength: 1, maxLength: 300 } },
+    into: { type: ["string", "null"], maxLength: 300 },
+  },
+  additionalProperties: false,
+} as const;
+
 type BooksLanguageBody = { bookIds: number[]; language: string };
 
 const booksLanguageSchema = {
@@ -402,6 +414,19 @@ export function buildApp(options: AppOptions): FastifyInstance {
       });
       return result;
     });
+
+    if (health) {
+      app.get("/api/admin/series-report", async () => health.getSeriesReport());
+
+      /** Gives several spellings of a series one name; `into: null` takes the books out of the series. */
+      app.post<{ Body: MergeSeriesBody }>("/api/admin/series/merge", { schema: { body: mergeSeriesSchema } }, async (request) => {
+        const result = await books.setSeries(health.listBookIdsInSeries(request.body.from), request.body.into, uploadActor(request).username);
+        activity?.record("series_merged", actorOf(request), {
+          details: { into: result.series ?? "", from: request.body.from.join(" | "), changedBooks: result.changedBooks },
+        });
+        return result;
+      });
+    }
 
     app.post<{ Body: BooksLanguageBody }>("/api/admin/books/language", { schema: { body: booksLanguageSchema } }, async (request) => {
       const language = request.body.language.trim().toLowerCase();

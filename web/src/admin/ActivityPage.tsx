@@ -17,6 +17,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   book_edited: "Fiche corrigée",
   book_deleted: "Livre supprimé",
   authors_merged: "Auteurs fusionnés",
+  series_merged: "Séries regroupées",
   request_created: "Demande",
   request_fulfilled: "Demande satisfaite",
   request_dropped: "Demande abandonnée",
@@ -67,6 +68,8 @@ function ActivitySubject({ entry }: { entry: ActivityEntry }): ReactNode {
     }
     case "book_deleted":
       return `${text(details.title)} → ${text(details.trashedTo)}`;
+    case "series_merged":
+      return `${text(details.from)} → ${details.into ? text(details.into) : "aucune série"} (${text(details.changedBooks)} livres)`;
     case "authors_merged":
       return `${text(details.from)} → ${text(details.into)} (${text(details.changedBooks)} livres)`;
     case "request_created":

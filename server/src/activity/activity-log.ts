@@ -19,6 +19,7 @@ export const ACTIVITY_ACTIONS = [
   "book_edited",
   "book_deleted",
   "authors_merged",
+  "series_merged",
   "request_created",
   "request_fulfilled",
   "request_dropped",

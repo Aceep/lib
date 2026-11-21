@@ -138,6 +138,7 @@ export type ActivityAction =
   | "book_edited"
   | "book_deleted"
   | "authors_merged"
+  | "series_merged"
   | "request_created"
   | "request_fulfilled"
   | "request_dropped"
@@ -292,4 +293,13 @@ export type LibraryHealth = {
   authorFixes: AuthorFix[];
   swappedBooks: SwappedBook[];
   syncRuns: SyncRun[];
+};
+
+export type SeriesSummary = { name: string; bookCount: number; authors: string[] };
+
+/** What is wrong with the series of the library: several spellings, false series, numbers used twice. */
+export type SeriesReport = {
+  similarSeries: { names: SeriesSummary[] }[];
+  doubtfulSeries: (SeriesSummary & { reason: string })[];
+  duplicateVolumes: { series: string; seriesIndex: number; books: { id: number; title: string }[] }[];
 };

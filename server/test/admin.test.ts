@@ -9,6 +9,7 @@ import { createBookAdmin } from "../src/admin/book-admin.js";
 import { createLibraryStatsQueries, type LibraryStats } from "../src/admin/library-stats.js";
 import { authorFromFilePath, authorIdentityKey, createLibraryHealthQueries, type LibraryHealth } from "../src/admin/library-health.js";
 import { authorSortKey, peopleInAuthorField } from "../src/admin/author-cleanup.js";
+import { doubtfulSeriesReason, isOneTypoAway, seriesKey } from "../src/admin/series-cleanup.js";
 import { seriesFromTitle } from "../src/admin/series-from-title.js";
 import { buildApp } from "../src/api/build-app.js";
 import { createAuthService } from "../src/auth/auth-service.js";
@@ -600,6 +601,97 @@ describe("author clean-up", () => {
     const lazare = await app.inject({ method: "GET", url: `/api/books/${bookId("L'effet Lazare")}`, headers: admin });
     expect(lazare.json()).toMatchObject({ authors: ["Frank Herbert", "Bill Ransom"] });
     expect(await listTitles(admin, `author=${encodeURIComponent("Frank Herbert")}`)).toEqual(["Dune", "L'effet Lazare"]);
+  });
+});
+
+describe("seriesKey", () => {
+  it("is the same for one series typed several ways", () => {
+    expect(new Set(["J.B. Adamsberg", "JB Adamsberg", "Commissaire Adamsberg"].map(seriesKey)).size).toBe(1);
+    expect(seriesKey("Sharko & Henebelle")).toBe(seriesKey("Sharko et Henebelle"));
+    expect(seriesKey("Capitaine Victor Coste")).toBe(seriesKey("Victor Coste"));
+    expect(seriesKey("saga drenaï")).toBe(seriesKey("Drenaï"));
+    expect(seriesKey("Dune. Chroniques de Caladan")).toBe(seriesKey("Dune : Chroniques de Caladan"));
+  });
+
+  it("keeps the series of one universe apart", () => {
+    const keys = ["Dune", "Avant Dune", "Légendes de Dune", "Dune, La Génèse", "Dune : Chroniques de Caladan", "Endymion", "L'éveil d'Endymion"].map(seriesKey);
+
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("spots a typo, but not two short or different names", () => {
+    expect(isOneTypoAway(seriesKey("L'assasin royal"), seriesKey("L'assassin royal"))).toBe(true);
+    expect(isOneTypoAway("dune", "lune")).toBe(false);
+    expect(isOneTypoAway("hyperion", "endymion")).toBe(false);
+  });
+});
+
+describe("doubtfulSeriesReason", () => {
+  it("flags placeholders and collection numbers, not real series", () => {
+    expect(doubtfulSeriesReason(".", [2004])).not.toBeNull();
+    expect(doubtfulSeriesReason("Tome", [1])).not.toBeNull();
+    expect(doubtfulSeriesReason("Epub commercial", [7767, 1169])).not.toBeNull();
+    expect(doubtfulSeriesReason("Quai des Orfèvres", [2024])).not.toBeNull();
+    expect(doubtfulSeriesReason("Fondation", [1, 2, 3])).toBeNull();
+    expect(doubtfulSeriesReason("Dune", [null])).toBeNull();
+  });
+});
+
+describe("series clean-up", () => {
+  beforeEach(async () => {
+    await writeBook(path.join(booksDirectory, "a.epub"), "Pars vite et reviens tard", ["Fred Vargas"], CALIBRE_SERIES("JB Adamsberg", 4));
+    await writeBook(path.join(booksDirectory, "b.epub"), "Sous les vents de Neptune", ["Fred Vargas"], CALIBRE_SERIES("J.B. Adamsberg", 6));
+    await writeBook(path.join(booksDirectory, "c.epub"), "Temps glaciaires", ["Fred Vargas"], CALIBRE_SERIES("Commissaire Adamsberg", 6));
+    await writeBook(path.join(booksDirectory, "d.epub"), "Un polar", ["Quelqu'un"], CALIBRE_SERIES("Epub commercial", 7767));
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+  });
+
+  const merge = (headers: Session, from: string[], into: string | null) =>
+    app.inject({ method: "POST", url: "/api/admin/series/merge", headers, payload: { from, into } });
+
+  it("reports spellings of one series, false series and numbers used twice", async () => {
+    const response = await app.inject({ method: "GET", url: "/api/admin/series-report", headers: await adminSession() });
+
+    expect(response.json()).toEqual({
+      similarSeries: [
+        {
+          names: [
+            { name: "Commissaire Adamsberg", bookCount: 1, authors: ["Fred Vargas"] },
+            { name: "J.B. Adamsberg", bookCount: 1, authors: ["Fred Vargas"] },
+            { name: "JB Adamsberg", bookCount: 1, authors: ["Fred Vargas"] },
+          ],
+        },
+      ],
+      doubtfulSeries: [{ name: "Epub commercial", bookCount: 1, authors: ["Quelqu'un"], reason: expect.any(String) }],
+      duplicateVolumes: [],
+    });
+  });
+
+  it("gives one name to every spelling, keeping the volume numbers, and survives a re-index", async () => {
+    const admin = await adminSession();
+    expect((await merge(await sessionOf("bob"), ["JB Adamsberg"], "Adamsberg")).statusCode).toBe(403);
+
+    const response = await merge(admin, ["Commissaire Adamsberg", "J.B. Adamsberg", "JB Adamsberg"], "Commissaire Adamsberg");
+
+    expect(response.json()).toEqual({ series: "Commissaire Adamsberg", changedBooks: 3 });
+    await reindexEverything();
+    expect(await listTitles(admin, `series=${encodeURIComponent("Commissaire Adamsberg")}`)).toEqual([
+      "Pars vite et reviens tard",
+      "Sous les vents de Neptune",
+      "Temps glaciaires",
+    ]);
+    const report = (await app.inject({ method: "GET", url: "/api/admin/series-report", headers: admin })).json<{ similarSeries: unknown[]; duplicateVolumes: unknown[] }>();
+    expect(report.similarSeries).toEqual([]);
+    expect(report.duplicateVolumes).toMatchObject([{ series: "Commissaire Adamsberg", seriesIndex: 6 }]);
+  });
+
+  it("takes the books out of a series that is not one", async () => {
+    const admin = await adminSession();
+
+    expect((await merge(admin, ["Epub commercial"], null)).json()).toEqual({ series: null, changedBooks: 1 });
+
+    const book = await app.inject({ method: "GET", url: `/api/books/${bookId("Un polar")}`, headers: admin });
+    expect(book.json()).toMatchObject({ series: null, seriesIndex: null });
   });
 });
 

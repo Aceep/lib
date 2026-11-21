@@ -5,6 +5,7 @@ import type { AuthorFix, AuthorlessBook, LibraryHealth, MissingField, SeriesSugg
 import { authorsLabel, countLabel, dateTimeLabel, fileSizeLabel, languageLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
+import { SeriesCleanup } from "./SeriesCleanup.js";
 
 const MISSING_LABELS: Record<MissingField, string> = { cover: "couverture", language: "langue", description: "résumé" };
 const SYNC_STATUS_LABELS: Record<SyncRun["status"], string> = { running: "En cours", succeeded: "Réussie", failed: "Échouée" };
@@ -561,6 +562,8 @@ export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void 
           }}
         />
       </Section>
+
+      <SeriesCleanup key={seriesSuggestions.length} onChanged={refresh} />
 
       <Section title="Livres en double probable" count={probableDuplicates.length} emptyText="Aucun livre n'apparaît deux fois.">
         <p className="record-secondary">Même titre et un auteur en commun, dans des fichiers différents. Ouvrez une fiche pour la supprimer : le fichier part dans la corbeille.</p>

@@ -9,6 +9,7 @@ import type {
   BookCorrection,
   ActivityPage,
   LibraryHealth,
+  SeriesReport,
   SeriesSuggestion,
   UploadSubmission,
   BookDetails, BookPage, BookSort, CatalogFacets, SyncRun, SyncStatus, UploadPreview, UploadResult, User, UserRole } from "./types.js";
@@ -261,6 +262,15 @@ export async function cancelUpload(uploadId: string): Promise<void> {
   if (!response.ok && response.status !== 404) {
     throw new ApiError(response.status, `HTTP ${response.status}`);
   }
+}
+
+export function fetchSeriesReport(signal?: AbortSignal): Promise<SeriesReport> {
+  return requestJson("/api/admin/series-report", { signal: signal ?? null });
+}
+
+/** Gives several spellings of a series one name; `into: null` takes the books out of the series. */
+export function mergeSeries(from: string[], into: string | null): Promise<{ series: string | null; changedBooks: number }> {
+  return requestJson("/api/admin/series/merge", jsonBody("POST", { from, into }));
 }
 
 export const coverUrl = (bookId: number) => `/api/books/${bookId}/cover`;

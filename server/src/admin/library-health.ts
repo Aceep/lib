@@ -4,6 +4,7 @@ import { toSortKey } from "../db/sort-key.js";
 import { parseAuthor } from "../library/file-naming.js";
 import { titleKey } from "../missing/title-key.js";
 import { givenNameLast, peopleInAuthorField, swappedTitlePeople } from "./author-cleanup.js";
+import { doubtfulSeriesReason, isOneTypoAway, seriesKey } from "./series-cleanup.js";
 import { seriesFromTitle } from "./series-from-title.js";
 
 export type InvalidFile = {
@@ -59,6 +60,18 @@ export type SwappedBook = {
   seriesIndex: number | null;
   suggestedTitle: string;
   suggestedAuthors: string[];
+};
+
+export type SeriesSummary = { name: string; bookCount: number; authors: string[] };
+
+/** What is wrong with the series of the library, for an admin to tidy up. */
+export type SeriesReport = {
+  /** One series typed several ways: "JB Adamsberg", "J.B. Adamsberg", "Commissaire Adamsberg". */
+  similarSeries: { names: SeriesSummary[] }[];
+  /** Series that are probably a publisher's collection or a placeholder. */
+  doubtfulSeries: (SeriesSummary & { reason: string })[];
+  /** Two books carrying the same number in one series. */
+  duplicateVolumes: { series: string; seriesIndex: number; books: { id: number; title: string }[] }[];
 };
 
 /** A series the book seems to belong to, for an admin to accept. */
@@ -303,6 +316,64 @@ export function createLibraryHealthQueries(database: LibraryDatabase) {
       return suggestions
         .map((suggestion) => ({ ...suggestion, series: preferred(suggestion.series) }))
         .sort((left, right) => left.series.localeCompare(right.series, "fr") || (left.seriesIndex ?? 0) - (right.seriesIndex ?? 0));
+    },
+
+    getSeriesReport(): SeriesReport {
+      const books = statements.listBooks.all().map((row) => ({ ...row, authors: JSON.parse(row.authors_json) as string[] }));
+      const bySeries = new Map<string, typeof books>();
+      for (const book of books) {
+        if (book.series) {
+          bySeries.set(book.series, [...(bySeries.get(book.series) ?? []), book]);
+        }
+      }
+      const summary = (name: string): SeriesSummary => {
+        const volumes = bySeries.get(name) ?? [];
+        return { name, bookCount: volumes.length, authors: [...new Set(volumes.flatMap((book) => book.authors.slice(0, 1)))] };
+      };
+
+      const doubtfulSeries = [...bySeries].flatMap(([name, volumes]) => {
+        const reason = doubtfulSeriesReason(name, volumes.map((book) => book.series_index));
+        return reason ? [{ ...summary(name), reason }] : [];
+      });
+      const doubtful = new Set(doubtfulSeries.map((series) => series.name));
+
+      const groups: { key: string; names: string[] }[] = [];
+      for (const name of [...bySeries.keys()].filter((series) => !doubtful.has(series)).sort((left, right) => left.localeCompare(right, "fr"))) {
+        const key = seriesKey(name);
+        const group = groups.find((candidate) => candidate.key === key || isOneTypoAway(candidate.key, key));
+        if (group) {
+          group.names.push(name);
+        } else {
+          groups.push({ key, names: [name] });
+        }
+      }
+
+      const duplicateVolumes: SeriesReport["duplicateVolumes"] = [];
+      for (const [series, volumes] of bySeries) {
+        const byIndex = new Map<number, typeof books>();
+        for (const book of volumes) {
+          if (book.series_index !== null) {
+            byIndex.set(book.series_index, [...(byIndex.get(book.series_index) ?? []), book]);
+          }
+        }
+        for (const [seriesIndex, sameNumber] of byIndex) {
+          if (sameNumber.length > 1 && !doubtful.has(series)) {
+            duplicateVolumes.push({ series, seriesIndex, books: sameNumber.map((book) => ({ id: book.id, title: book.title })) });
+          }
+        }
+      }
+
+      return {
+        similarSeries: groups.filter((group) => group.names.length > 1).map((group) => ({ names: group.names.map(summary) })),
+        doubtfulSeries,
+        duplicateVolumes,
+      };
+    },
+
+    /** Ids of the books filed under any of these series names, spelled exactly so. */
+    listBookIdsInSeries(names: string[]): number[] {
+      const wanted = new Set(names);
+      return statements.listBooks.all().filter((book) => book.series !== null && wanted.has(book.series)).map((book) => book.id);
     },
 
     getHealth(): LibraryHealth {
