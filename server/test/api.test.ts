@@ -83,6 +83,32 @@ describe("GET /api/books", () => {
     expect(await listTitles("")).toEqual(["Dune", "Dune Messiah", "Good Omens", "L'Événement", "Les Années"]);
   });
 
+  it("sorts accented titles alongside unaccented ones", async () => {
+    await writeBook({ file: "ete.epub", title: "Été", authors: ["Émile Zola"] }, new Date(Date.UTC(2026, 5, 1)));
+    await writeBook({ file: "zazie.epub", title: "Zazie", authors: [] }, new Date(Date.UTC(2026, 5, 2)));
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+
+    const titles = await listTitles("pageSize=100");
+
+    expect(titles.indexOf("Été")).toBe(titles.indexOf("Dune Messiah") + 1);
+    expect(titles.at(-1)).toBe("Zazie");
+  });
+
+  it("sorts accented author names alongside unaccented ones", async () => {
+    await writeBook({ file: "ete.epub", title: "Été", authors: ["Émile Zola"] }, new Date(Date.UTC(2026, 5, 1)));
+    await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
+
+    const response = await app.inject({ method: "GET", url: "/api/facets" });
+
+    expect(response.json<{ authors: { name: string }[] }>().authors.map((author) => author.name)).toEqual([
+      "Annie Ernaux",
+      "Émile Zola",
+      "Frank Herbert",
+      "Neil Gaiman",
+      "Terry Pratchett",
+    ]);
+  });
+
   it("returns authors in order and tells whether a cover exists", async () => {
     const response = await app.inject({ method: "GET", url: "/api/books?q=omens" });
 

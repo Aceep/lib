@@ -11,6 +11,7 @@ const MIGRATIONS: string[] = [
     file_size INTEGER NOT NULL,
     file_mtime_ms INTEGER NOT NULL,
     title TEXT NOT NULL,
+    sort_title TEXT NOT NULL,
     language TEXT,
     description TEXT,
     cover_file TEXT,
@@ -18,10 +19,12 @@ const MIGRATIONS: string[] = [
     updated_at TEXT NOT NULL
   );
   CREATE INDEX books_language ON books (language);
+  CREATE INDEX books_sort_title ON books (sort_title);
 
   CREATE TABLE authors (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE COLLATE NOCASE
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    sort_name TEXT NOT NULL
   );
 
   CREATE TABLE book_authors (

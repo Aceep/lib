@@ -1,4 +1,5 @@
 import type { LibraryDatabase } from "./database.js";
+import { toSortKey } from "./sort-key.js";
 
 export type FileFingerprint = {
   filePath: string;
@@ -43,11 +44,20 @@ export function createLibraryStore(database: LibraryDatabase) {
       "SELECT file_path, file_size, file_mtime_ms FROM invalid_files",
     ),
     insertBook: database.prepare<
-      { filePath: string; fileSize: number; fileMtimeMs: number; title: string; language: string | null; description: string | null; now: string },
+      {
+        filePath: string;
+        fileSize: number;
+        fileMtimeMs: number;
+        title: string;
+        sortTitle: string;
+        language: string | null;
+        description: string | null;
+        now: string;
+      },
       { id: number }
     >(
-      `INSERT INTO books (file_path, file_size, file_mtime_ms, title, language, description, added_at, updated_at)
-       VALUES (@filePath, @fileSize, @fileMtimeMs, @title, @language, @description, @now, @now)
+      `INSERT INTO books (file_path, file_size, file_mtime_ms, title, sort_title, language, description, added_at, updated_at)
+       VALUES (@filePath, @fileSize, @fileMtimeMs, @title, @sortTitle, @language, @description, @now, @now)
        RETURNING id`,
     ),
     updateBook: database.prepare<{
@@ -55,19 +65,20 @@ export function createLibraryStore(database: LibraryDatabase) {
       fileSize: number;
       fileMtimeMs: number;
       title: string;
+      sortTitle: string;
       language: string | null;
       description: string | null;
       now: string;
     }>(
-      `UPDATE books SET file_size = @fileSize, file_mtime_ms = @fileMtimeMs, title = @title, language = @language,
+      `UPDATE books SET file_size = @fileSize, file_mtime_ms = @fileMtimeMs, title = @title, sort_title = @sortTitle, language = @language,
          description = @description, updated_at = @now
        WHERE id = @bookId`,
     ),
     setCoverFile: database.prepare<[string | null, number]>("UPDATE books SET cover_file = ? WHERE id = ?"),
     deleteBook: database.prepare<[number]>("DELETE FROM books WHERE id = ?"),
-    upsertAuthor: database.prepare<[string], { id: number }>(
+    upsertAuthor: database.prepare<[string, string], { id: number }>(
       // The no-op update makes RETURNING yield the existing row on conflict.
-      "INSERT INTO authors (name) VALUES (?) ON CONFLICT (name) DO UPDATE SET name = name RETURNING id",
+      "INSERT INTO authors (name, sort_name) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET name = name RETURNING id",
     ),
     deleteBookAuthors: database.prepare<[number]>("DELETE FROM book_authors WHERE book_id = ?"),
     insertBookAuthor: database.prepare<[number, number, number]>(
@@ -92,7 +103,7 @@ export function createLibraryStore(database: LibraryDatabase) {
   function replaceAuthorsAndSearchEntry(bookId: number, record: BookRecord): void {
     statements.deleteBookAuthors.run(bookId);
     record.authors.forEach((name, position) => {
-      const author = statements.upsertAuthor.get(name);
+      const author = statements.upsertAuthor.get(name, toSortKey(name));
       if (author) {
         statements.insertBookAuthor.run(bookId, author.id, position);
       }
@@ -127,6 +138,7 @@ export function createLibraryStore(database: LibraryDatabase) {
         fileSize: record.fileSize,
         fileMtimeMs: record.fileMtimeMs,
         title: record.title,
+        sortTitle: toSortKey(record.title),
         language: record.language,
         description: record.description,
         now,

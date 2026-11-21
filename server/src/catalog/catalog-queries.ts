@@ -84,12 +84,12 @@ function toSummary(row: BookRow): BookSummary {
 function orderByClause(sort: BookSort, hasFullTextQuery: boolean): string {
   if (sort === "relevance" && hasFullTextQuery) {
     // bm25 weights: a hit in the title counts more than one in the authors, which beats the description.
-    return "ORDER BY bm25(books_fts, 10.0, 5.0, 1.0), books.title COLLATE NOCASE";
+    return "ORDER BY bm25(books_fts, 10.0, 5.0, 1.0), books.sort_title";
   }
   if (sort === "recent") {
     return "ORDER BY books.added_at DESC, books.id DESC";
   }
-  return "ORDER BY books.title COLLATE NOCASE, books.id";
+  return "ORDER BY books.sort_title, books.id";
 }
 
 export type CatalogQueries = ReturnType<typeof createCatalogQueries>;
@@ -109,7 +109,7 @@ export function createCatalogQueries(database: LibraryDatabase) {
   const authorFacetStatement = database.prepare<[], { name: string; book_count: number }>(
     `SELECT authors.name, COUNT(*) AS book_count
      FROM authors JOIN book_authors ON book_authors.author_id = authors.id
-     GROUP BY authors.id ORDER BY authors.name COLLATE NOCASE`,
+     GROUP BY authors.id ORDER BY authors.sort_name`,
   );
   const languageFacetStatement = database.prepare<[], { language: string; book_count: number }>(
     `SELECT language, COUNT(*) AS book_count FROM books
