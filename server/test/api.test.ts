@@ -8,6 +8,7 @@ import { createCatalogQueries } from "../src/catalog/catalog-queries.js";
 import { type LibraryDatabase, openLibraryDatabase } from "../src/db/database.js";
 import { createLibraryStore } from "../src/db/library-store.js";
 import { indexLibrary } from "../src/library/index-library.js";
+import { createSyncService } from "../src/sync/sync-service.js";
 import { opfDocument, writeEpub } from "./helpers/build-epub.js";
 
 let workDirectory: string;
@@ -55,7 +56,16 @@ beforeEach(async () => {
   }
   database = openLibraryDatabase(":memory:");
   await indexLibrary({ store: createLibraryStore(database), booksDirectory, coversDirectory });
-  app = buildApp({ catalog: createCatalogQueries(database), booksDirectory, coversDirectory });
+  const sync = createSyncService({
+    database,
+    store: createLibraryStore(database),
+    booksDirectory,
+    coversDirectory,
+    rcloneRemote: null,
+    runCommand: async () => ({ exitCode: 0, stderrTail: "" }),
+    logError: () => {},
+  });
+  app = buildApp({ catalog: createCatalogQueries(database), sync, nextScheduledSyncAt: () => null, booksDirectory, coversDirectory });
 });
 
 afterEach(async () => {

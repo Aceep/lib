@@ -3,9 +3,13 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyServerOptions } from "fastify";
 import type { BookSort, CatalogQueries } from "../catalog/catalog-queries.js";
+import type { SyncService } from "../sync/sync-service.js";
 
 export type AppOptions = {
   catalog: CatalogQueries;
+  sync: SyncService;
+  /** When the next scheduled sync will run, null when scheduling is off. */
+  nextScheduledSyncAt: () => Date | null;
   booksDirectory: string;
   coversDirectory: string;
   logger?: FastifyServerOptions["logger"];
@@ -77,8 +81,22 @@ function notFound(reply: FastifyReply, message: string) {
   return reply.code(404).send({ error: "not_found", message });
 }
 
-export function buildApp({ catalog, booksDirectory, coversDirectory, logger = false }: AppOptions): FastifyInstance {
+export function buildApp(options: AppOptions): FastifyInstance {
+  const { catalog, sync, nextScheduledSyncAt, booksDirectory, coversDirectory, logger = false } = options;
   const app = Fastify({ logger });
+
+  app.get("/api/sync", async () => ({
+    ...sync.getStatus(),
+    nextScheduledAt: nextScheduledSyncAt()?.toISOString() ?? null,
+  }));
+
+  app.post("/api/sync", async (_request, reply) => {
+    const run = sync.start("manual");
+    if (!run) {
+      return reply.code(409).send({ error: "sync_running", message: "A sync is already running" });
+    }
+    return reply.code(202).send(run);
+  });
 
   app.get<{ Querystring: BookListQuerystring }>(
     "/api/books",

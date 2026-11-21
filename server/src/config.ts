@@ -7,7 +7,13 @@ export type ServerConfig = {
   dataDirectory: string;
   databasePath: string;
   coversDirectory: string;
+  /** rclone source to mirror into the books directory, e.g. "mega:Livres". Null skips the pull. */
+  rcloneRemote: string | null;
+  /** Cron pattern for automatic syncs, null when disabled. */
+  syncCron: string | null;
 };
+
+const DEFAULT_SYNC_CRON = "0 4 * * *";
 
 function directoryFromEnvironment(environment: NodeJS.ProcessEnv, name: string, fallback: string): string {
   return path.resolve(environment[name]?.trim() || fallback);
@@ -24,6 +30,14 @@ function parsePort(rawPort: string | undefined): number {
   return port;
 }
 
+function parseSyncCron(rawPattern: string | undefined): string | null {
+  const pattern = rawPattern?.trim();
+  if (pattern === undefined || pattern === "") {
+    return DEFAULT_SYNC_CRON;
+  }
+  return pattern.toLowerCase() === "off" ? null : pattern;
+}
+
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ServerConfig {
   const dataDirectory = directoryFromEnvironment(environment, "DATA_DIR", "data");
   return {
@@ -34,5 +48,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
     dataDirectory,
     databasePath: path.join(dataDirectory, "library.sqlite"),
     coversDirectory: path.join(dataDirectory, "covers"),
+    rcloneRemote: environment.RCLONE_REMOTE?.trim() || null,
+    syncCron: parseSyncCron(environment.SYNC_CRON),
   };
 }

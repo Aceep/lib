@@ -50,6 +50,21 @@ const MIGRATIONS: string[] = [
     detected_at TEXT NOT NULL
   );
   `,
+  `
+  CREATE TABLE sync_runs (
+    id INTEGER PRIMARY KEY,
+    trigger TEXT NOT NULL CHECK (trigger IN ('manual', 'scheduled')),
+    status TEXT NOT NULL CHECK (status IN ('running', 'succeeded', 'failed')),
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    added INTEGER,
+    updated INTEGER,
+    removed INTEGER,
+    unchanged INTEGER,
+    failures_json TEXT,
+    error TEXT
+  );
+  `,
 ];
 
 function migrate(database: LibraryDatabase): void {
