@@ -30,8 +30,10 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
      Non vérifié : est-ce que MEGA expose des empreintes de fichiers via rclone.
   2. Après la synchro locale : empreinte du contenu pour les doublons exacts, et métadonnées EPUB (titre + auteur,
      via `server/src/epub/read-epub-metadata.ts`) pour repérer le même livre sous deux fichiers différents.
+     **Fait** (lecture seule) : `npm run duplicates -w server [-- --json] [dossier]` (`server/src/duplicates/find-duplicates.ts`).
+     Fichier proposé à garder : sans marqueur de copie (`(1)`, `copie`, `copy`), puis le plus gros, puis le chemin le plus court.
   3. Rapport groupe par groupe avec une proposition de fichier à garder ; aucune modification sans ma validation.
-     Déplacer les doublons dans un dossier `_doublons` sur MEGA plutôt que les supprimer.
+     Déplacer les doublons dans un dossier `_doublons` sur MEGA plutôt que les supprimer (à faire : à partir du `--json`).
 - Attention : le quota de transfert du compte MEGA gratuit limite la synchro complète.
 
 ## Plus tard

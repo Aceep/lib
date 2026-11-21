@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "index": "tsx src/index-books.ts",
+    "duplicates": "tsx src/find-duplicates.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

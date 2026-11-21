@@ -31,7 +31,7 @@ const COVER_EXTENSIONS: Record<string, string> = {
   "image/svg+xml": "svg",
 };
 
-async function listEpubFiles(booksDirectory: string): Promise<FileFingerprint[]> {
+export async function listEpubFiles(booksDirectory: string): Promise<FileFingerprint[]> {
   const entries = await readdir(booksDirectory, { recursive: true, withFileTypes: true });
   const epubFiles: FileFingerprint[] = [];
   for (const entry of entries) {
