@@ -1,6 +1,8 @@
 import { type FormEvent, useState } from "react";
 import { login } from "../api/client.js";
 import type { User } from "../api/types.js";
+import { KyleSays } from "../shared/KyleSays.js";
+import { Logo } from "../shared/Logo.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
 
 export function LoginPage({ onLoggedIn }: { onLoggedIn: (user: User) => void }) {
@@ -25,7 +27,12 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: (user: User) => void }) 
   return (
     <main className="login-page">
       <form className="form login-form" onSubmit={(event) => void handleSubmit(event)}>
-        <h1>Kyle Lib</h1>
+        <div className="login-hero">
+          <img className="login-figure" src="/Kyle.png" alt="Kyle, le dinosaure jaune" width="455" height="548" />
+          <h1 className="visually-hidden">Kyle Lib</h1>
+          <Logo />
+          <p className="login-tagline">La bibliothèque, rien qu'à nous deux.</p>
+        </div>
         <label className="filter">
           Identifiant
           <input
@@ -51,9 +58,11 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: (user: User) => void }) 
           />
         </label>
         {errorMessage ? (
-          <p className="error" role="alert">
-            {errorMessage}
-          </p>
+          <div role="alert">
+            <KyleSays pose="mirrored" size="small">
+              <strong>Je ne te reconnais pas.</strong> {errorMessage}
+            </KyleSays>
+          </div>
         ) : null}
         <button type="submit" className="button primary" disabled={isSubmitting}>
           {isSubmitting ? "Connexion…" : "Se connecter"}

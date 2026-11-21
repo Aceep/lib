@@ -173,6 +173,23 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
 - Suite du plan, dans l'ordre : livres manquants (Open Library + Wikidata, auteurs suivis) ; demandes de livres ;
   tableau de bord.
 
+## Identité visuelle Kyle (2026-11-21)
+
+- Maquette (canevas de design, privé) : https://claude.ai/artifact/W1kiBHfn3ZMwRJqfFELYwN — accueil mobile cuivre vs Kyle,
+  recherche, fiche, bureau, connexion, admin, et la planche « Identité » (palette, crête, logotype B retenu, coins classiques).
+- Décisions : jaune Kyle `#FFD23F` pour tout ce qui agit (dark : liens aussi ; light : liens en ambre `#8A6200` pour
+  le contraste), vert crête `#8DBF3A` pour « OK », fond nuit `#121110`. Logotype **B** : « KYLE » en capitales
+  grasses avec la crête sur le K (`web/src/shared/Logo.tsx`). Pas de coins « œuf ».
+- Kyle parle à la première personne dans les moments vides (`web/src/shared/KyleSays.tsx`, image `web/public/Kyle.png`) :
+  recherche vide (« Rien sous cette pierre. »), bibliothèque vide (« Je dors en attendant la synchro. »), zone de dépôt
+  (« Glisse tes EPUB ici, je m'occupe du rangement. »), doublon (« Je connais déjà celui-là »), connexion refusée
+  (« Je ne te reconnais pas. »). Quatre vraies poses dessinées rendraient ça plus vivant.
+- Tout tient dans `web/src/theme-kyle.css`, chargé après `styles.css` : il ne fait que redéfinir les tokens et les
+  quelques sélecteurs qui portaient l'accent cuivre. Pour revenir en arrière : retirer l'import dans `main.tsx`.
+- Pas encore fait, visible sur la maquette : barre d'onglets en bas sur mobile (Accueil, Recherche, Auteurs, Ajouter),
+  bulle d'accueil de Kyle sur la page d'accueil (« J'ai rangé N nouveaux livres cette semaine »), étiquette NOUVEAU sur
+  les derniers ajouts, écran admin « Ajouts à valider » avec la santé en encart.
+
 ## Plus tard
 
 - Phase 2 : demandes de livres (formulaire, liste, statut) — intégrée au plan du panneau admin ci-dessus.

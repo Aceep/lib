@@ -5,6 +5,7 @@ import type { UploadDuplicate, UploadPreview, UploadResult, UploadSubmission, Us
 import { authorsLabel, dateTimeLabel, fileSizeLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
 import { useDebouncedValue } from "../shared/use-debounced-value.js";
+import { KyleSays } from "../shared/KyleSays.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
 
 type PreviewItem = { step: "preview"; preview: UploadPreview; busy: boolean; error: string | null };
@@ -33,7 +34,7 @@ export function DuplicateWarning({ duplicates }: { duplicates: UploadDuplicate[]
   }
   return (
     <div className="upload-warning" role="alert">
-      <strong>Ce livre semble déjà dans la bibliothèque :</strong>
+      <strong>Je connais déjà celui-là :</strong>
       <ul>
         {duplicates.map((duplicate) => (
           <li key={duplicate.bookId}>
@@ -312,7 +313,9 @@ export function UploadPage({ user, onLibraryChanged }: { user: User; onLibraryCh
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
       >
-        <p>Glisse des fichiers EPUB ici</p>
+        <KyleSays>
+          <strong>Glisse tes EPUB ici,</strong> je m'occupe du rangement.
+        </KyleSays>
         <span className="upload-drop-or">ou</span>
         <label className="button primary upload-choose">
           <input type="file" accept=".epub,application/epub+zip" multiple onChange={handleInput} />

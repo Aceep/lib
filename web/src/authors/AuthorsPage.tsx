@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { fetchFacets } from "../api/client.js";
 import { countLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
+import { KyleSays } from "../shared/KyleSays.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
 import { groupAuthorsByLetter } from "./authors-index.js";
 
@@ -50,7 +51,13 @@ export function AuthorsPage({ libraryVersion }: { libraryVersion: number }) {
           ))}
         </nav>
       ) : null}
-      {facets.data && groups.length === 0 ? <p className="empty-state">Aucun auteur ne correspond.</p> : null}
+      {facets.data && groups.length === 0 ? (
+        <div className="kyle-empty">
+          <KyleSays pose="mirrored">
+            <strong>Rien sous cette pierre.</strong> Aucun auteur ne correspond.
+          </KyleSays>
+        </div>
+      ) : null}
       {groups.map((group) => (
         <section key={group.letter} className="author-group" id={`auteurs-${group.letter}`}>
           <h2>{group.letter}</h2>
