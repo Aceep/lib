@@ -3,6 +3,7 @@ import { fetchBooks, fetchFacets } from "../api/client.js";
 import type { BookPage, BookSummary } from "../api/types.js";
 import { countLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
+import { KyleSays } from "../shared/KyleSays.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
 import { BookCard, BookCardSkeleton } from "./BookCard.js";
 import { BookShelf } from "./BookShelf.js";
@@ -90,9 +91,17 @@ export function CatalogPage({ libraryVersion }: { libraryVersion: number }) {
       ) : null}
 
       {books.data && books.data.items.length === 0 ? (
-        <p className="empty-state">
-          {hasFilters ? "Aucun livre ne correspond à cette recherche." : "Le catalogue est vide : lance une synchro ou ajoute des livres."}
-        </p>
+        <div className="kyle-empty">
+          {hasFilters ? (
+            <KyleSays pose="mirrored">
+              <strong>Rien sous cette pierre.</strong> Aucun livre ne correspond à cette recherche.
+            </KyleSays>
+          ) : (
+            <KyleSays pose="sleepy">
+              <strong>Je dors en attendant la synchro.</strong> Lance-la ou ajoute des livres, je me réveille.
+            </KyleSays>
+          )}
+        </div>
       ) : null}
 
       <ul className={`book-grid${books.status === "loading" && books.data ? " is-loading" : ""}`}>

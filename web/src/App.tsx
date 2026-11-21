@@ -12,6 +12,8 @@ import { LoginPage } from "./auth/LoginPage.js";
 import { AuthorsPage } from "./authors/AuthorsPage.js";
 import { BookPage } from "./book/BookPage.js";
 import { CatalogPage } from "./catalog/CatalogPage.js";
+import { KyleSays } from "./shared/KyleSays.js";
+import { Logo } from "./shared/Logo.js";
 import { useDocumentTitle } from "./shared/use-document-title.js";
 import { SyncIndicator } from "./sync/SyncIndicator.js";
 import { UploadPage } from "./upload/UploadPage.js";
@@ -20,7 +22,11 @@ function NotFoundPage() {
   useDocumentTitle("Page introuvable");
   return (
     <main className="page">
-      <p className="empty-state">Cette page n'existe pas.</p>
+      <div className="kyle-empty">
+        <KyleSays pose="mirrored">
+          <strong>Rien sous cette pierre.</strong> Cette page n'existe pas.
+        </KyleSays>
+      </div>
       <Link to="/">← Retour au catalogue</Link>
     </main>
   );
@@ -131,8 +137,7 @@ function SignedInApp({ user, onLoggedOut }: { user: User; onLoggedOut: () => voi
       <SearchShortcut />
       <header className="app-header">
         <Link to="/" className="app-title">
-          <img className="app-logo" src="/favicon.svg" alt="" width="24" height="24" />
-          <span>Kyle Lib</span>
+          <Logo />
         </Link>
         <nav className="app-nav" aria-label="Navigation">
           <NavLink to="/authors" className="nav-link">
