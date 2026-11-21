@@ -12,6 +12,9 @@ export function AdminLayout({ pendingUploadCount }: { pendingUploadCount: number
           Envois à valider
           {pendingUploadCount > 0 ? <span className="count-badge">{pendingUploadCount}</span> : null}
         </NavLink>
+        <NavLink to="/admin/missing" className="nav-link">
+          Livres manquants
+        </NavLink>
         <NavLink to="/admin/health" className="nav-link">
           Santé
         </NavLink>

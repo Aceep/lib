@@ -170,25 +170,26 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
   la bibliothèque, soit `mega:_corbeille`) par `rclone moveto`, puis retire la copie locale et la fiche. Sans remote, le
   fichier va dans `DATA_DIR/trash/`. Si rclone échoue, rien ne change. Jamais lancé contre le vrai MEGA.
 - Front : fiche livre (série, étagère « Série », panneau « Administration » pour les admins), filtre `?series=`.
-- Suite du plan, dans l'ordre : livres manquants (Open Library + Wikidata, auteurs suivis) ; demandes de livres ;
-  tableau de bord.
 
-## Identité visuelle Kyle (2026-11-21)
+## Panneau admin — livres manquants (fait le 2026-11-21)
 
-- Maquette (canevas de design, privé) : https://claude.ai/artifact/W1kiBHfn3ZMwRJqfFELYwN — accueil mobile cuivre vs Kyle,
-  recherche, fiche, bureau, connexion, admin, et la planche « Identité » (palette, crête, logotype B retenu, coins classiques).
-- Décisions : jaune Kyle `#FFD23F` pour tout ce qui agit (dark : liens aussi ; light : liens en ambre `#8A6200` pour
-  le contraste), vert crête `#8DBF3A` pour « OK », fond nuit `#121110`. Logotype **B** : « KYLE » en capitales
-  grasses avec la crête sur le K (`web/src/shared/Logo.tsx`). Pas de coins « œuf ».
-- Kyle parle à la première personne dans les moments vides (`web/src/shared/KyleSays.tsx`, image `web/public/Kyle.png`) :
-  recherche vide (« Rien sous cette pierre. »), bibliothèque vide (« Je dors en attendant la synchro. »), zone de dépôt
-  (« Glisse tes EPUB ici, je m'occupe du rangement. »), doublon (« Je connais déjà celui-là »), connexion refusée
-  (« Je ne te reconnais pas. »). Quatre vraies poses dessinées rendraient ça plus vivant.
-- Tout tient dans `web/src/theme-kyle.css`, chargé après `styles.css` : il ne fait que redéfinir les tokens et les
-  quelques sélecteurs qui portaient l'accent cuivre. Pour revenir en arrière : retirer l'import dans `main.tsx`.
-- Pas encore fait, visible sur la maquette : barre d'onglets en bas sur mobile (Accueil, Recherche, Auteurs, Ajouter),
-  bulle d'accueil de Kyle sur la page d'accueil (« J'ai rangé N nouveaux livres cette semaine »), étiquette NOUVEAU sur
-  les derniers ajouts, écran admin « Ajouts à valider » avec la santé en encart.
+- Admin → Livres manquants. On **suit** un auteur de la bibliothèque : recherche du nom sur Wikidata, choix de la bonne
+  personne (homonymes), puis récupération de sa bibliographie. Tables `followed_authors` et `author_works` (migration 8).
+- Sources (`server/src/missing/bibliography-sources.ts`) : **API Action de Wikidata** (`haswbstatement:P50=…` puis
+  `wbgetentities`), qui donne titres français, séries (P179) et numéros (P1545) ; on écarte éditions, items de série,
+  nouvelles, poèmes, listes. **Open Library** (`search.json?author_key=…`, clé lue dans P648) complète avec les œuvres
+  d'au moins 5 éditions que Wikidata n'a pas — bruité, étiqueté comme tel. Le service de requêtes SPARQL de Wikidata est
+  à éviter : il a bloqué ce poste 1000 s après trois requêtes. Une requête à la fois par hôte, 300 ms d'écart.
+- Rapprochement par titre (`title-key.ts`), côté bibliothèque volontairement strict : titre entier, ou ce qui suit un
+  numéro de tome (« L'Assassin Royal-10-Serments et Deuils », « Dune, 03. Les enfants de Dune »). Les auteurs sont
+  rapprochés par `authorIdentityKey`, donc les variantes non fusionnées comptent. Boutons « Je l'ai déjà » / « Ignorer »,
+  conservés à l'actualisation.
+- Essai réel sur une copie de la base : Robin Hobb 88 œuvres, 16 reconnues ; Frank Herbert 69 œuvres, 18 reconnues.
+  Limites vues : les livres co-signés mal saisis (« Herbert,Frank-Ransom,Bill ») ne sont pas rattachés ; Wikidata
+  liste à la fois le volume original et chaque tome du découpage français (doublons à ignorer à la main).
+- **Trous dans les séries** : calculés localement sur `books.series` / `series_index` (séries de plus de 60 tomes
+  ignorées). Sur la vraie base, beaucoup de faux trous viennent de numéros de série faux dans les EPUB.
+- Suite du plan : demandes de livres, puis tableau de bord.
 
 ## Plus tard
 

@@ -1089,6 +1089,37 @@ button:disabled {
   resize: vertical;
 }
 
+.follow-form {
+  max-width: 36rem;
+}
+
+.candidate-list {
+  width: 100%;
+}
+
+.candidate-list li {
+  justify-content: space-between;
+}
+
+.followed-author-name {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.work-group {
+  margin-top: 0.9rem;
+}
+
+.work-group h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.work-group summary {
+  cursor: pointer;
+  color: var(--color-muted);
+}
+
 .merge-actions {
   display: flex;
   flex-wrap: wrap;

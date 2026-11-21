@@ -150,6 +150,34 @@ const MIGRATIONS: string[] = [
     updated_by TEXT
   );
   `,
+  `
+  -- Authors whose bibliography is fetched from Wikidata and Open Library to list what the library lacks.
+  CREATE TABLE followed_authors (
+    id INTEGER PRIMARY KEY,
+    -- The author as named in the library.
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    wikidata_id TEXT NOT NULL,
+    wikidata_label TEXT NOT NULL,
+    openlibrary_key TEXT,
+    fetched_at TEXT,
+    fetch_error TEXT
+  );
+
+  CREATE TABLE author_works (
+    id INTEGER PRIMARY KEY,
+    followed_author_id INTEGER NOT NULL REFERENCES followed_authors (id) ON DELETE CASCADE,
+    source TEXT NOT NULL CHECK (source IN ('wikidata', 'openlibrary')),
+    external_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    alternate_titles_json TEXT NOT NULL,
+    series TEXT,
+    series_index REAL,
+    year INTEGER,
+    -- The admin's call; NULL leaves it to title matching against the library.
+    decision TEXT CHECK (decision IN ('ignored', 'owned')),
+    UNIQUE (followed_author_id, source, external_id)
+  );
+  `,
 ];
 
 function migrate(database: LibraryDatabase): void {

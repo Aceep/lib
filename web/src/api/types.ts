@@ -152,6 +152,38 @@ export type ActivityPage = {
   usernames: string[];
 };
 
+export type AuthorCandidate = { wikidataId: string; label: string; description: string | null };
+
+export type WorkDecision = "ignored" | "owned";
+
+export type AuthorWork = {
+  id: number;
+  title: string;
+  alternateTitles: string[];
+  series: string | null;
+  seriesIndex: number | null;
+  year: number | null;
+  source: "wikidata" | "openlibrary";
+  state: "missing" | "owned" | "ignored";
+  /** The admin's own call; null while the state only comes from title matching. */
+  decision: WorkDecision | null;
+  ownedBookId: number | null;
+};
+
+export type FollowedAuthor = {
+  id: number;
+  name: string;
+  wikidataId: string;
+  wikidataLabel: string;
+  fetchedAt: string | null;
+  fetchError: string | null;
+  works: AuthorWork[];
+};
+
+export type SeriesGap = { series: string; authors: string[]; owned: number[]; missing: number[] };
+
+export type MissingBooksReport = { authors: FollowedAuthor[]; seriesGaps: SeriesGap[] };
+
 export type MissingField = "cover" | "language" | "description";
 
 export type LibraryHealth = {

@@ -1,5 +1,8 @@
 import type {
   ActivityAction,
+  AuthorCandidate,
+  MissingBooksReport,
+  WorkDecision,
   BookCorrection,
   ActivityPage,
   LibraryHealth,
@@ -183,6 +186,32 @@ export async function deleteBook(bookId: number): Promise<void> {
 
 export function mergeAuthors(from: string[], into: string): Promise<{ into: string; changedBooks: number }> {
   return requestJson("/api/admin/authors/merge", jsonBody("POST", { from, into }));
+}
+
+export function fetchMissingBooks(signal?: AbortSignal): Promise<MissingBooksReport> {
+  return requestJson("/api/admin/missing", { signal: signal ?? null });
+}
+
+/** The people Wikidata knows under that name, for the admin to pick the right one. */
+export function searchAuthorCandidates(name: string): Promise<AuthorCandidate[]> {
+  return requestJson(`/api/admin/missing/candidates?${new URLSearchParams({ name })}`);
+}
+
+export function followAuthor(name: string, candidate: AuthorCandidate): Promise<MissingBooksReport> {
+  return requestJson("/api/admin/missing/authors", jsonBody("POST", { name, wikidataId: candidate.wikidataId, wikidataLabel: candidate.label }));
+}
+
+export function refreshFollowedAuthor(authorId: number): Promise<MissingBooksReport> {
+  return requestJson(`/api/admin/missing/authors/${authorId}/refresh`, { method: "POST" });
+}
+
+export async function unfollowAuthor(authorId: number): Promise<void> {
+  await request(`/api/admin/missing/authors/${authorId}`, { method: "DELETE" });
+}
+
+/** `null` hands the work back to automatic title matching. */
+export async function decideWork(workId: number, decision: WorkDecision | null): Promise<void> {
+  await request(`/api/admin/missing/works/${workId}`, jsonBody("PUT", { decision }));
 }
 
 export function fetchLibraryHealth(signal?: AbortSignal): Promise<LibraryHealth> {

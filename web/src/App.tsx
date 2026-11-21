@@ -3,6 +3,7 @@ import { BrowserRouter, Link, NavLink, Route, Routes, useLocation, useNavigate }
 import { ActivityPage } from "./admin/ActivityPage.js";
 import { AdminLayout } from "./admin/AdminLayout.js";
 import { HealthPage } from "./admin/HealthPage.js";
+import { MissingBooksPage } from "./admin/MissingBooksPage.js";
 import { ReviewUploadsPage } from "./admin/ReviewUploadsPage.js";
 import { UsersPage } from "./admin/UsersPage.js";
 import { fetchCurrentUser, fetchSubmittedUploadCount, SESSION_ENDED_EVENT } from "./api/client.js";
@@ -182,6 +183,7 @@ function SignedInApp({ user, onLoggedOut }: { user: User; onLoggedOut: () => voi
                 />
               }
             />
+            <Route path="missing" element={<MissingBooksPage libraryVersion={libraryVersion} />} />
             <Route path="health" element={<HealthPage onLibraryChanged={handleLibraryChanged} />} />
             <Route path="users" element={<UsersPage currentUser={user} />} />
           </Route>

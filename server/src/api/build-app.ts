@@ -8,6 +8,7 @@ import { ACTIVITY_ACTIONS, type ActivityAction, type ActivityLog } from "../acti
 import { type BookAdmin, BookAdminError } from "../admin/book-admin.js";
 import type { LibraryHealthQueries } from "../admin/library-health.js";
 import { AuthError, type AuthService } from "../auth/auth-service.js";
+import { type MissingBooks, MissingBooksError, type WorkDecision } from "../missing/missing-books.js";
 import type { BookSort, CatalogQueries } from "../catalog/catalog-queries.js";
 import type { SyncService } from "../sync/sync-service.js";
 import { actorOf, registerAuth } from "./auth-routes.js";
@@ -21,6 +22,8 @@ export type AppOptions = {
   activity?: ActivityLog;
   /** Editing and deleting books; the routes are not registered without it. */
   books?: BookAdmin;
+  /** Followed authors and the books of theirs the library lacks; the routes are not registered without it. */
+  missing?: MissingBooks;
   /** Admin report on what is wrong with the library; the route is not registered without it. */
   health?: LibraryHealthQueries;
   /** True behind a reverse proxy, so the client address and protocol come from the X-Forwarded-* headers. */
@@ -113,6 +116,33 @@ const mergeAuthorsSchema = {
   additionalProperties: false,
 } as const;
 
+const authorCandidatesQuerystringSchema = {
+  type: "object",
+  required: ["name"],
+  properties: { name: { type: "string", minLength: 1, maxLength: 200 } },
+  additionalProperties: false,
+} as const;
+
+type FollowAuthorBody = { name: string; wikidataId: string; wikidataLabel: string };
+
+const followAuthorSchema = {
+  type: "object",
+  required: ["name", "wikidataId", "wikidataLabel"],
+  properties: {
+    name: { type: "string", minLength: 1, maxLength: 200 },
+    wikidataId: { type: "string", pattern: "^Q[0-9]{1,12}$" },
+    wikidataLabel: { type: "string", minLength: 1, maxLength: 300 },
+  },
+  additionalProperties: false,
+} as const;
+
+const workDecisionSchema = {
+  type: "object",
+  required: ["decision"],
+  properties: { decision: { type: ["string", "null"], enum: ["ignored", "owned", null] } },
+  additionalProperties: false,
+} as const;
+
 const rejectUploadSchema = {
   type: "object",
   properties: { reason: { type: "string", maxLength: 500 } },
@@ -185,7 +215,7 @@ function notFound(reply: FastifyReply, message: string) {
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
-  const { catalog, auth, activity, health, books, sync, uploads, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } = options;
+  const { catalog, auth, activity, health, books, missing, sync, uploads, nextScheduledSyncAt, booksDirectory, coversDirectory, webDirectory = null, logger = false } = options;
   const app = Fastify({ logger, trustProxy: options.trustProxy ?? false });
 
   if (webDirectory) {
@@ -197,7 +227,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (error instanceof UploadError) {
       return reply.code(error.status).send({ error: error.code, message: error.message });
     }
-    if (error instanceof BookAdminError) {
+    if (error instanceof BookAdminError || error instanceof MissingBooksError) {
       return reply.code(error.status).send({ error: error.code, message: error.message });
     }
     if (error instanceof AuthError) {
@@ -322,6 +352,40 @@ export function buildApp(options: AppOptions): FastifyInstance {
       });
       return result;
     });
+  }
+
+  if (missing) {
+    app.get("/api/admin/missing", async () => missing.getReport());
+
+    app.get<{ Querystring: { name: string } }>(
+      "/api/admin/missing/candidates",
+      { schema: { querystring: authorCandidatesQuerystringSchema } },
+      async (request) => missing.searchAuthors(request.query.name.trim()),
+    );
+
+    app.post<{ Body: FollowAuthorBody }>("/api/admin/missing/authors", { schema: { body: followAuthorSchema } }, async (request, reply) => {
+      await missing.follow(request.body.name.trim(), request.body.wikidataId, request.body.wikidataLabel.trim());
+      return reply.code(201).send(missing.getReport());
+    });
+
+    app.post<{ Params: BookParams }>("/api/admin/missing/authors/:id/refresh", { schema: { params: bookParamsSchema } }, async (request) => {
+      await missing.refresh(request.params.id);
+      return missing.getReport();
+    });
+
+    app.delete<{ Params: BookParams }>("/api/admin/missing/authors/:id", { schema: { params: bookParamsSchema } }, async (request, reply) => {
+      missing.unfollow(request.params.id);
+      return reply.code(204).send();
+    });
+
+    app.put<{ Params: BookParams; Body: { decision: WorkDecision | null } }>(
+      "/api/admin/missing/works/:id",
+      { schema: { params: bookParamsSchema, body: workDecisionSchema } },
+      async (request, reply) => {
+        missing.decide(request.params.id, request.body.decision);
+        return reply.code(204).send();
+      },
+    );
   }
 
   if (health) {

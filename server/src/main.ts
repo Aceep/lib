@@ -5,6 +5,8 @@ import { createActivityLog } from "./activity/activity-log.js";
 import { createBookAdmin } from "./admin/book-admin.js";
 import { createLibraryHealthQueries } from "./admin/library-health.js";
 import { createAuthService } from "./auth/auth-service.js";
+import { createBibliographySources } from "./missing/bibliography-sources.js";
+import { createMissingBooks } from "./missing/missing-books.js";
 import { createCatalogQueries } from "./catalog/catalog-queries.js";
 import { loadConfig } from "./config.js";
 import { openLibraryDatabase } from "./db/database.js";
@@ -59,6 +61,7 @@ const app = buildApp({
   auth,
   activity,
   health: createLibraryHealthQueries(database),
+  missing: createMissingBooks({ database, sources: createBibliographySources() }),
   books: createBookAdmin({
     store,
     booksDirectory: config.booksDirectory,
