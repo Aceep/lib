@@ -205,6 +205,19 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
 - Le plan du panneau admin est terminé. Reste hors plan : nom de domaine et HTTPS réel, vérification visuelle de
   toutes les pages, essai de la suppression contre le vrai MEGA.
 
+## Qualité des fiches (fait le 2026-11-21)
+
+- Page « Santé » : livres sans auteur (ou « Unknown ») avec l'auteur lu dans le dossier du fichier
+  (`authorFromFilePath`), livres en double probable (même `titleKey` + un auteur en commun), séries à renseigner,
+  livres sans langue à classer en lot (`POST /api/admin/books/language`, gardé dans `book_overrides.language`).
+- Séries : `seriesFromTitle` lit série, tome et titre propre dans les titres (64 livres sur 702 sur les vraies
+  données) ; les œuvres Wikidata des auteurs suivis servent de repli. `GET /api/admin/series-suggestions`.
+- Langues : `fre`/`fra`/`eng`… ramenés au code à deux lettres, `und` = pas de langue (migration 10 + indexeur).
+- Résumés automatiques abandonnés : Open Library en a pour 2 livres sur 14 testés, aucun en français ; Google Books
+  répond 429 sans clé d'API. À reprendre seulement avec une clé Google Books.
+- Vérifié dans Chrome headless sur une copie de la base, via un proxy de test qui ajoute le cookie de session.
+- Reste : envoi vers Kindle (attend un compte SMTP), couvertures manquantes (10 livres).
+
 ## Plus tard
 
 - Phase 2 : demandes de livres (formulaire, liste, statut) — intégrée au plan du panneau admin ci-dessus.
