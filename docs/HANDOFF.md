@@ -27,7 +27,10 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
 - Lancer rclone lit `~/.config/rclone`, hors du repo : me demander d'abord.
 - Approche envisagée :
   1. Lecture seule : `rclone lsjson -R` pour repérer les fichiers de même taille ou de nom proche une fois normalisé.
-     Non vérifié : est-ce que MEGA expose des empreintes de fichiers via rclone.
+     **Fait** (2026-11-21) : `rclone lsjson -R --files-only mega: > data/mega-lsjson.json`, puis
+     `node scripts/mega-pass1.mjs data/mega-lsjson.json docs/doublons-mega.md`. Vérifié : MEGA n'expose aucune empreinte
+     via rclone (`Hashes: []`), d'où une passe 1 limitée aux noms et tailles. Les EPUB sont dans `mega:Library`
+     (915 fichiers, 1,3 Go ; 814 rangés dans `Books/<Lettre>/<Auteur>/`, le reste en vrac à la racine).
   2. Après la synchro locale : empreinte du contenu pour les doublons exacts, et métadonnées EPUB (titre + auteur,
      via `server/src/epub/read-epub-metadata.ts`) pour repérer le même livre sous deux fichiers différents.
      **Fait** (lecture seule) : `npm run duplicates -w server [-- --json] [dossier]` (`server/src/duplicates/find-duplicates.ts`).

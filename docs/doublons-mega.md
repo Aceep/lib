@@ -1,0 +1,638 @@
+# Doublons probables sur MEGA — passe 1 (listing seul, rien modifié)
+
+915 EPUB listés. MEGA n'expose pas d'empreintes via rclone : seuls les noms et tailles sont comparés.
+
+Règle de lecture : le premier fichier de chaque groupe est celui proposé à garder (dans `Books/`, sans « (2) », le plus gros).
+
+## A. Même chemin en double (particularité MEGA) — 1 groupes, 1 fichiers en trop
+
+`rclone dedupe` sait traiter ce cas ; sinon il faut passer par l'interface MEGA.
+
+- garder  `Library/Books/R/Kim Stanley Robinson/Le ministère du futur (Kim Stanley Robinson) (Z-Library).epub (904 Ko)`
+  - doublon `Library/Books/R/Kim Stanley Robinson/Le ministère du futur (Kim Stanley Robinson) (Z-Library).epub (904 Ko)`
+
+## B. Même taille exacte — quasi certainement identiques — 15 groupes, 16 fichiers en trop
+
+- garder  `Library/Books/C/Alain Chouet/ALAIN_CHOUET__SEPT_PAS_VERS_LENFER.epub (439 Ko)`
+  - doublon `Library/Books/C/Alain Chouet/ALAIN_CHOUET__SEPT_PAS_VERS_L_ENFER.epub (439 Ko)`
+- garder  `Library/Books/C/Atlas Geopolitique du Monde Con/ATLAS_GEOPOLITIQUE_DU_MONDE_CON__ROMAIN_BERTOLINO.epub (27427 Ko)`
+  - doublon `Library/Books/C/Atlas Geopolitique du Monde Con/ATLAS_GEOPOLITIQUE_DU_MONDE_CON__ROMAIN_BERTOLINO_2.epub (27427 Ko)`
+- garder  `Library/Books/C/Stephen Crane/STEPHEN_CRANE__L_INSIGNE_ROUGE_DU_COURAGE.epub (455 Ko)`
+  - doublon `Library/Books/D/L Insigne Rouge du Courage/L_INSIGNE_ROUGE_DU_COURAGE__STEPHEN_CRANE.epub (455 Ko)`
+- garder  `Library/Books/K/Milan Kundera/MILAN_KUNDERA__L_INSOUTENABLE_LEGERETE_DE_L_ETRE.epub (5292 Ko)`
+  - doublon `Library/Books/K/Milan Kundera/insoutenable légéreté de l'être, L' - Milan Kundera.epub (5292 Ko)`
+- garder  `Library/Books/L/Philippe Lancon/LANCON_PHILIPPE__LE_LAMBEAU.epub (445 Ko)`
+  - doublon `Library/Books/L/Philippe Lancon/PHILIPPE_LANCON__LE_LAMBEAU.epub (445 Ko)`
+- garder  `Library/Books/R/A Retardement/A_RETARDEMENT__FRANCK_THILLIEZ.epub (5545 Ko)`
+  - doublon `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__SHARKO_ET_HENEBELLE_T13_A_RETARDEMENT.epub (5545 Ko)`
+- garder  `Library/Books/R/Kim Stanley Robinson/Le ministère du futur (Kim Stanley Robinson) (Z-Library).epub (904 Ko)`
+  - doublon `Library/Books/R/Kim Stanley Robinson/Le ministère du futur (Kim Stanley Robinson) (Z-Library).epub (904 Ko)`
+- garder  `Library/Books/S/Alain Bauer Christophe Soullez/Alain Bauer & Christophe Soullez_La Criminologie Pour les Nuls.epub (833 Ko)`
+  - doublon `Library/Books/S/Alain Bauer Christophe Soullez/ALAIN_BAUER_CHRISTOPHE_SOULLEZ__LA_CRIMINOLOGIE_POUR_LES_NULS (2).epub (833 Ko)`
+- garder  `Library/Books/S/Alain Bauer Christophe Soullez/Alain Bauer & Christophe Soullez_criminologie pour les nuls, La.epub (833 Ko)`
+  - doublon `Library/Books/S/Alain Bauer Christophe Soullez/ALAIN_BAUER_CHRISTOPHE_SOULLEZ__LA_CRIMINOLOGIE_POUR_LES_NULS (3).epub (833 Ko)`
+- garder  `Library/Books/S/Jeanne Siaud-Facchin/JEANNE_SIAUD_FACCHIN__UN_PRINTEMPS_POUR_SOI.epub (3355 Ko)`
+  - doublon `Library/Books/S/Jeanne Siaud-Facchin/JEANNE_JEANNE_SIAUD_FACCHIN_SIAUD_FACCHIN__UN_PRINTEMPS_POUR_SOI.epub (3355 Ko)`
+- garder  `Library/Books/B/Philippe Besson/PHILIPPE_BESSON__CECI_N_EST_PAS_UN_FAIT_DIVERS (2).epub (5443 Ko)`
+  - doublon `Library/ceci-n-est-pas-un-fait-divers_bookys.epub (5443 Ko)`
+- garder  `Library/Books/K/Milan Kundera/MILAN_KUNDERA__L_INSOUTENABLE_LEGERETE_DE_L_ETRE_2.epub (321 Ko)`
+  - doublon `Library/Books/K/Milan Kundera/MILAN_KUNDERA__L_INSOUTENABLE_LEGERETE_DE_L_ETRE (2).epub (321 Ko)`
+  - doublon `Library/Legerete.epub (321 Ko)`
+- garder  `Library/Books/S/Salomé Saqué/SALOME_SAQUE__RESISTER.epub (293 Ko)`
+  - doublon `Library/SAQUE_SALOME_RESISTER_FRENCH_EDITION.epub (293 Ko)`
+- garder  `Library/Books/M/Richard Malka/RICHARD_MALKA__TRAITE_SUR_L_INTOLERANCE (2).epub (137 Ko)`
+  - doublon `Library/Traite sur l intolerance 2.epub (137 Ko)`
+- garder  `Library/Books/M/Richard Malka/RICHARD_MALKA__TRAITE_SUR_L_INTOLERANCE.epub (5485 Ko)`
+  - doublon `Library/Traite sur l intolerance.epub (5485 Ko)`
+
+## C. Même nom, tailles différentes — même livre sous deux fichiers — 231 groupes, 255 fichiers en trop
+
+Souvent quelques centaines d'octets d'écart : même EPUB re-sauvegardé avec d'autres métadonnées. À confirmer en local (titre + auteur) avant de trancher.
+
+- garder  `Library/Books/P/Ada Palmer/ADA_PALMER__SEPT_REDDITIONS.epub (581 Ko)`
+  - doublon `Library/ADA_PALMER_SEPT_REDDITIONS.epub (548 Ko)`
+- garder  `Library/Books/A/André Aciman/ANDRE_ACIMAN__CALL_ME_BY_YOUR_NAME.epub (694 Ko)`
+  - doublon `Library/Books/A/André Aciman/ANDRE_ACIMAN__CALL_ME_BY_YOUR_NAME (2).epub (694 Ko)`
+- garder  `Library/Books/A/Athame/ATHAME__JAMES_E_L_CINQUANTE_NUANCES_DE_GREY_FIFTY_SHADES_OF_GREY_T1.epub (470 Ko)`
+  - doublon `Library/Books/A/Athame/ATHAME__JAMES_E_L_CINQUANTE_NUANCES_DE_GREY_FIFTY_SHADES_OF_GREY_T1 (2).epub (658 Ko)`
+- garder  `Library/Books/A/Gerard Araud/GERARD_ARAUD__PASSEPORT_DIPLOMATIQUE_QUARANTE_ANS_AU_QUAI_D_ORSAY.epub (337 Ko)`
+  - doublon `Library/Books/A/Gerard Araud/GERARD_ARAUD__PASSEPORT_DIPLOMATIQUE_QUARANTE_ANS_AU_QUAI_D_ORSAY (2).epub (337 Ko)`
+- garder  `Library/Books/A/Hannah Arendt/HANNAH_ARENDT__LA_LIBERTE_D_ETRE_LIBRE.epub (58 Ko)`
+  - doublon `Library/Books/A/Hannah Arendt/HANNAH_ARENDT__LA_LIBERTE_D_ETRE_LIBRE (2).epub (58 Ko)`
+- garder  `Library/Books/A/Jane Austen/JANE_AUSTEN__RAISON_ET_SENTIMENTS.epub (646 Ko)`
+  - doublon `Library/Books/A/Jane Austen/JANE_AUSTEN__RAISON_ET_SENTIMENTS (2).epub (646 Ko)`
+- garder  `Library/Books/A/Jean-Baptiste Andrea/JEAN_BAPTISTE_ANDREA__VEILLER_SUR_ELLE.epub (601 Ko)`
+  - doublon `Library/Books/A/Jean-Baptiste Andrea/JEAN_BAPTISTE_ANDREA__VEILLER_SUR_ELLE (2).epub (601 Ko)`
+- garder  `Library/Books/A/Maud Ankaoua/MAUD_ANKAOUA__KILOMETRE_ZERO.epub (311 Ko)`
+  - doublon `Library/Books/A/Maud Ankaoua/MAUD_ANKAOUA__KILOMETRE_ZERO (2).epub (311 Ko)`
+- garder  `Library/Books/A/Maud Ankaoua/MAUD_ANKAOUA__PLUS_JAMAIS_SANS_MOI.epub (704 Ko)`
+  - doublon `Library/Books/A/Maud Ankaoua/MAUD_ANKAOUA__PLUS_JAMAIS_SANS_MOI (2).epub (987 Ko)`
+- garder  `Library/Books/A/Mona Awad/MONA_AWAD__BUNNY.epub (977 Ko)`
+  - doublon `Library/Books/A/Mona Awad/MONA_AWAD__BUNNY (2).epub (977 Ko)`
+- garder  `Library/Books/A/Nathacha Appanah/NATHACHA_APPANAH__LA_NUIT_AU_C_UR.epub (524 Ko)`
+  - doublon `Library/Books/A/Nathacha Appanah/NATHACHA_APPANAH__LA_NUIT_AU_C_UR (2).epub (524 Ko)`
+- garder  `Library/Books/A/Paul Auster/AUSTER_PAUL__TRILOGIE_NEW_YORKAISE.epub (477 Ko)`
+  - doublon `Library/Books/A/Paul Auster/PAUL_AUSTER__TRILOGIE_NEW_YORKAISE.epub (477 Ko)`
+- garder  `Library/Books/A/Santiago H. Amigorena/SANTIAGO_H_AMIGORENA__LA_JUSTICE_DES_HOMMES.epub (253 Ko)`
+  - doublon `Library/Books/A/Santiago H. Amigorena/SANTIAGO_H_AMIGORENA__LA_JUSTICE_DES_HOMMES (2).epub (357 Ko)`
+- garder  `Library/Books/A/William S. Allen/WILLIAM_S_ALLEN__UNE_PETITE_VILLE_NAZIE.epub (900 Ko)`
+  - doublon `Library/Books/A/William S. Allen/WILLIAM_S_ALLEN__UNE_PETITE_VILLE_NAZIE (2).epub (900 Ko)`
+- garder  `Library/Books/B/Aurélien Bellanger/AURELIEN_BELLANGER__LES_DERNIERS_JOURS_DU_PARTI_SOCIALISTE.epub (896 Ko)`
+  - doublon `Library/Books/B/Aurélien Bellanger/AURELIEN_BELLANGER__LES_DERNIERS_JOURS_DU_PARTI_SOCIALISTE (2).epub (896 Ko)`
+- garder  `Library/Books/B/Bénédicte Belpois/BENEDICTE_BELPOIS__SAINT_JACQUES.epub (5225 Ko)`
+  - doublon `Library/Books/B/Bénédicte Belpois/BENEDICTE_BELPOIS__SAINT_JACQUES (2).epub (5225 Ko)`
+- garder  `Library/Books/D/Une Façon D'Aimer/UNE_FACON_D_AIMER__DOMINIQUE_BARBERIS.epub (203 Ko)`
+  - doublon `Library/Books/B/Dominique Barberis/DOMINIQUE_BARBERIS__UNE_FACON_D_AIMER.epub (203 Ko)`
+- garder  `Library/Books/B/Gerald Bronner/GERALD_BRONNER__COMME_DES_DIEUX.epub (337 Ko)`
+  - doublon `Library/Books/B/Gerald Bronner/GERALD_BRONNER__COMME_DES_DIEUX (2).epub (337 Ko)`
+- garder  `Library/Books/B/Gwenael Bulteau/GWENAEL_BULTEAU__LA_REPUBLIQUE_DES_FAIBLES.epub (313 Ko)`
+  - doublon `Library/Books/B/Gwenael Bulteau/GWENAEL_BULTEAU__LA_REPUBLIQUE_DES_FAIBLES (2).epub (313 Ko)`
+- garder  `Library/Books/B/Heine Bakkeid/HEINE_BAKKEID__TU_ME_MANQUERAS_DEMAIN.epub (350 Ko)`
+  - doublon `Library/Books/B/Heine Bakkeid/HEINE_BAKKEID__TU_ME_MANQUERAS_DEMAIN (2).epub (350 Ko)`
+- garder  `Library/Books/B/Henry Bromell/HENRY_BROMELL__LITTLE_AMERICA.epub (703 Ko)`
+  - doublon `Library/Books/B/Henry Bromell/HENRY_BROMELL__LITTLE_AMERICA (2).epub (795 Ko)`
+- garder  `Library/Books/B/James Bamford/JAMES_BAMFORD__BODY_OF_SECRETS_ANATOMY_OF_THE_ULTRA_SECRET_NATIONAL_SECURITY_AGENCY.epub (797 Ko)`
+  - doublon `Library/Books/B/James Bamford/JAMES_BAMFORD__BODY_OF_SECRETS_ANATOMY_OF_THE_ULTRA_SECRET_NATIONAL_SECURITY_AGENCY (2).epub (797 Ko)`
+- garder  `Library/Books/B/Laurent Baffie/LAURENT_BAFFIE__LE_GUIDE_DE_LA_REPARTIE.epub (527 Ko)`
+  - doublon `Library/Books/B/Laurent Baffie/LAURENT_BAFFIE__LE_GUIDE_DE_LA_REPARTIE (2).epub (528 Ko)`
+- garder  `Library/Books/B/Laurent Binet/LAURENT_BINET__HHHH.epub (628 Ko)`
+  - doublon `Library/Books/B/Laurent Binet/LAURENT_BINET__HHHH (2).epub (628 Ko)`
+- garder  `Library/Books/B/Mathilde Beaussault/MATHILDE_BEAUSSAULT__LES_SAULES.epub (203 Ko)`
+  - doublon `Library/Books/B/Mathilde Beaussault/MATHILDE_BEAUSSAULT__LES_SAULES (2).epub (203 Ko)`
+- garder  `Library/Books/B/Michel Bussi/MICHEL_BUSSI__LES_NYMPHEAS_NOIRS.epub (381 Ko)`
+  - doublon `Library/Books/B/Michel Bussi/MICHEL_BUSSI__LES_NYMPHEAS_NOIRS (2).epub (381 Ko)`
+- garder  `Library/Books/B/Olivier Mak Bouchard/OLIVIER_MAK_BOUCHARD__LE_DIT_DU_MISTRAL.epub (469 Ko)`
+  - doublon `Library/Books/B/Olivier Mak Bouchard/OLIVIER_MAK_BOUCHARD__LE_DIT_DU_MISTRAL (2).epub (469 Ko)`
+- garder  `Library/Books/B/Philippe Besson/PHILIPPE_BESSON__CECI_N_EST_PAS_UN_FAIT_DIVERS.epub (346 Ko)`
+  - doublon `Library/Books/B/Philippe Besson/PHILIPPE_BESSON__CECI_N_EST_PAS_UN_FAIT_DIVERS (3).epub (5443 Ko)`
+  - doublon `Library/Books/B/Philippe Besson/PHILIPPE_BESSON__CECI_N_EST_PAS_UN_FAIT_DIVERS (2).epub (5443 Ko)`
+- garder  `Library/Books/B/Philippe Cachau Jean-Jacques Breton/PHILIPPE_CACHAU_JEAN_JACQUES_BRETON__HISTOIRE_DE_L_ART_POUR_LES_NULS.epub (4840 Ko)`
+  - doublon `Library/Books/B/Philippe Cachau Jean-Jacques Breton/JEAN_JACQUES_BRETON_PHILIPPE_CACHAU__HISTOIRE_DE_L_ART_POUR_LES_NULS.epub (4840 Ko)`
+- garder  `Library/Books/B/Pierre Brunel/PIERRE_BRUNEL__LES_GRANDS_MYTHES_POUR_LES_NULS.epub (1734 Ko)`
+  - doublon `Library/Books/B/Pierre Brunel/PIERRE_BRUNEL__LES_GRANDS_MYTHES_POUR_LES_NULS (2).epub (1734 Ko)`
+- garder  `Library/Books/B/Ruben Barrouk/RUBEN_BARROUK__TOUT_LE_BRUIT_DU_GUELIZ.epub (443 Ko)`
+  - doublon `Library/Books/B/Ruben Barrouk/RUBEN_BARROUK_RUBEN_BARROUK__TOUT_LE_BRUIT_DU_GUELIZ.epub (443 Ko)`
+- garder  `Library/Books/C/Alain Chouet/ALAIN_CHOUET__SEPT_PAS_VERS_L_ENFER.epub (439 Ko)`
+  - doublon `Library/Books/C/Alain Chouet/ALAIN_CHOUET__SEPT_PAS_VERS_L_ENFER (2).epub (440 Ko)`
+- garder  `Library/Books/C/Albert Camus/ALBERT_CAMUS__L_ETRANGER.epub (100 Ko)`
+  - doublon `Library/Books/C/Albert Camus/ALBERT_CAMUS__L_ETRANGER (2).epub (101 Ko)`
+- garder  `Library/Books/C/Cécile Coulon/CECILE_COULON__SEULE_EN_SA_DEMEURE.epub (5325 Ko)`
+  - doublon `Library/Books/C/Cécile Coulon/CECILE_COULON__SEULE_EN_SA_DEMEURE (2).epub (5325 Ko)`
+- garder  `Library/Books/C/Éric Cobast/ERIC_COBAST__TOUTE_LA_CULTURE_GENERALE.epub (5581 Ko)`
+  - doublon `Library/Books/C/Éric Cobast/ERIC_COBAST__TOUTE_LA_CULTURE_GENERALE (2).epub (5582 Ko)`
+- garder  `Library/Books/C/Jeanine Cummins/JEANINE_CUMMINS__AMERICAN_DIRT.epub (568 Ko)`
+  - doublon `Library/Books/C/Jeanine Cummins/JEANINE_CUMMINS__AMERICAN_DIRT (2).epub (568 Ko)`
+- garder  `Library/Books/C/Jonathan Coe/JONATHAN_COE__LES_PREUVES_DE_MON_INNOCENCE.epub (949 Ko)`
+  - doublon `Library/Books/C/Jonathan Coe/JONATHAN_COE__LES_PREUVES_DE_MON_INNOCENCE (2).epub (949 Ko)`
+- garder  `Library/Books/C/Martial Caroff/CAROFF_MARTIAL__NE_ME_REMERCIEZ_PAS.epub (5249 Ko)`
+  - doublon `Library/Books/C/Martial Caroff/MARTIAL_CAROFF__NE_ME_REMERCIEZ_PAS.epub (5249 Ko)`
+- garder  `Library/Books/C/Maxime Chattam/CHATTAM_MAXIME__L_ILLUSION.epub (662 Ko)`
+  - doublon `Library/Books/C/Maxime Chattam/CHATTAM_MAXIME__L_ILLUSION (2).epub (663 Ko)`
+- garder  `Library/Books/C/Maxime Chattam/MAXIME_CHATTAM__LE_COMA_DES_MORTELS.epub (717 Ko)`
+  - doublon `Library/Books/C/Maxime Chattam/MAXIME_CHATTAM__LE_COMA_DES_MORTELS (2).epub (717 Ko)`
+- garder  `Library/Books/C/Maxime Chattam/MAXIME_CHATTAM__PRIME_TIME.epub (948 Ko)`
+  - doublon `Library/Books/C/Maxime Chattam/MAXIME_CHATTAM__PRIME_TIME (2).epub (948 Ko)`
+- garder  `Library/Books/C/Maxime Chattam/MAXIME_CHATTAM__QUE_TA_VOLONTE_SOIT_FAITE.epub (320 Ko)`
+  - doublon `Library/Books/C/Maxime Chattam/MAXIME_CHATTAM__QUE_TA_VOLONTE_SOIT_FAITE (2).epub (320 Ko)`
+- garder  `Library/Books/C/Ray Celestin/RAY_CELESTIN__MAFIOSO.epub (938 Ko)`
+  - doublon `Library/Books/C/Ray Celestin/RAY_CELESTIN__MAFIOSO (2).epub (938 Ko)`
+- garder  `Library/Books/C/Ray Celestin/RAY_CELESTIN__MASCARADE.epub (2058 Ko)`
+  - doublon `Library/Books/C/Ray Celestin/RAY_CELESTIN__MASCARADE (2).epub (2059 Ko)`
+- garder  `Library/Books/C/Stéphanie Castillo-Soler/STEPHANIE_CASTILLO_SOLER__LIBRES_DANS_LEUR_TETE.epub (341 Ko)`
+  - doublon `Library/Books/C/Stéphanie Castillo-Soler/STEPHANIE_CASTILLO_SOLER__LIBRES_DANS_LEUR_TETE (2).epub (340 Ko)`
+- garder  `Library/Books/C/Stephanie Coste/STEPHANIE_COSTE__LE_PASSEUR.epub (5317 Ko)`
+  - doublon `Library/Books/C/Stephanie Coste/STEPHANIE_COSTE__LE_PASSEUR (3).epub (213 Ko)`
+  - doublon `Library/Books/C/Stephanie Coste/STEPHANIE_COSTE__LE_PASSEUR (2).epub (213 Ko)`
+- garder  `Library/Books/C/Sylvie Goulard Thibaut Caulier/SYLVIE_GOULARD_THIBAUT_CAULIER__50_NOTIONS_CLES_SUR_L_EUROPE_POUR_LES_NULS.epub (490 Ko)`
+  - doublon `Library/Books/C/Sylvie Goulard Thibaut Caulier/THIBAUT_CAULIER_SYLVIE_GOULARD__50_NOTIONS_CLES_SUR_L_EUROPE_POUR_LES_NULS.epub (490 Ko)`
+- garder  `Library/Books/C/Victor Castanet/CASTANET_VICTOR__LES_FOSSOYEURS.epub (495 Ko)`
+  - doublon `Library/Books/C/Victor Castanet/VICTOR_CASTANET__LES_FOSSOYEURS.epub (495 Ko)`
+- garder  `Library/Books/D/Adeline Dieudonne/ADELINE_DIEUDONNE__KEROZENE.epub (655 Ko)`
+  - doublon `Library/Books/D/Adeline Dieudonne/ADELINE_DIEUDONNE__KEROZENE (2).epub (655 Ko)`
+- garder  `Library/Books/D/Alain Damasio/ALAIN_DAMASIO__LA_HORDE_DU_CONTREVENT.epub (1880 Ko)`
+  - doublon `Library/Books/D/Alain Damasio/ALAIN_DAMASIO__LA_HORDE_DU_CONTREVENT (2).epub (1880 Ko)`
+- garder  `Library/Books/D/Benjamin Dierstein/BENJAMIN_DIERSTEIN__BLEUS_BLANCS_ROUGES.epub (868 Ko)`
+  - doublon `Library/Books/D/Benjamin Dierstein/BENJAMIN_DIERSTEIN__BLEUS_BLANCS_ROUGES (2).epub (868 Ko)`
+- garder  `Library/Books/D/De Montaigu, Thibault & Thibault de Montaigu/DE_MONTAIGU_THIBAULT_THIBAULT_DE_MONTAIGU__COEUR.epub (476 Ko)`
+  - doublon `Library/Books/D/Thibault de Montaigu/THIBAULT_DE_MONTAIGU__COEUR.epub (476 Ko)`
+- garder  `Library/Books/T/Tsunami/TSUNAMI__MARC_DUGAIN.epub (5345 Ko)`
+  - doublon `Library/Books/D/Dugain Marc & Marc Dugain/DUGAIN_MARC_MARC_DUGAIN__TSUNAMI.epub (466 Ko)`
+  - doublon `Library/Books/D/Marc Dugain/MARC_DUGAIN__TSUNAMI.epub (466 Ko)`
+- garder  `Library/Books/D/Erri De Luca/ERRI_DE_LUCA__IMPOSSIBLE.epub (517 Ko)`
+  - doublon `Library/Books/D/Erri De Luca/ERRI_DE_LUCA__IMPOSSIBLE (2).epub (518 Ko)`
+- garder  `Library/Books/D/Etienne de Montety/ETIENNE_DE_MONTETY__LA_GRANDE_EPREUVE.epub (323 Ko)`
+  - doublon `Library/Books/D/Etienne de Montety/ETIENNE_DE_MONTETY__LA_GRANDE_EPREUVE (2).epub (534 Ko)`
+- garder  `Library/Books/D/Fatima Daas/FATIMA_DAAS__JOUER_LE_JEU.epub (249 Ko)`
+  - doublon `Library/Books/D/Fatima Daas/FATIMA_DAAS__JOUER_LE_JEU (2).epub (249 Ko)`
+- garder  `Library/Books/D/Fatima Daas/FATIMA_DAAS__LA_PETITE_DERNIERE.epub (254 Ko)`
+  - doublon `Library/Books/D/Fatima Daas/FATIMA_DAAS__LA_PETITE_DERNIERE (2).epub (254 Ko)`
+- garder  `Library/Books/D/Francois-Henri Deserable/FRANCOIS_HENRI_DESERABLE__L_USURE_D_UN_MONDE.epub (3172 Ko)`
+  - doublon `Library/Books/D/Francois-Henri Deserable/FRANCOIS_HENRI_DESERABLE__L_USURE_D_UN_MONDE (2).epub (3172 Ko)`
+- garder  `Library/Books/D/Gemmell David/GEMMELL_DAVID__WAYLANDER_II_DANS_LE_ROYAUME_DU_LOUP.epub (438 Ko)`
+  - doublon `Library/Books/D/Gemmell David/DAVID_GEMMELL__WAYLANDER_II_DANS_LE_ROYAUME_DU_LOUP.epub (438 Ko)`
+- garder  `Library/Books/D/Ghislaine Dunant/GHISLAINE_DUNANT__UN_AMOUR_INFINI.epub (982 Ko)`
+  - doublon `Library/Books/D/Ghislaine Dunant/GHISLAINE_DUNANT__UN_AMOUR_INFINI (2).epub (982 Ko)`
+- garder  `Library/Books/D/Jean-Baptiste Del Amo/JEAN_BAPTISTE_DEL_AMO__LA_NUIT_RAVAGEE.epub (5546 Ko)`
+  - doublon `Library/Books/D/Jean-Baptiste Del Amo/JEAN_BAPTISTE_DEL_AMO__LA_NUIT_RAVAGEE (2).epub (5546 Ko)`
+- garder  `Library/Books/D/Kamel Daoud/KAMEL_DAOUD__HOURIS.epub (503 Ko)`
+  - doublon `Library/Books/D/Kamel Daoud/KAMEL_DAOUD__HOURIS (2).epub (503 Ko)`
+- garder  `Library/Books/C/Stephen Crane/STEPHEN_CRANE__L_INSIGNE_ROUGE_DU_COURAGE.epub (455 Ko)`
+  - doublon `Library/Books/D/L Insigne Rouge du Courage/L_INSIGNE_ROUGE_DU_COURAGE__STEPHEN_CRANE.epub (455 Ko)`
+  - doublon `Library/Books/C/Stephen Crane/STEPHEN_CRANE__L_INSIGNE_ROUGE_DU_COURAGE (2).epub (455 Ko)`
+- garder  `Library/Books/D/Marc Dugain/MARC_DUGAIN__LEGITIME_VIOLENCE.epub (470 Ko)`
+  - doublon `Library/Books/D/Marc Dugain/MARC_DUGAIN__LEGITIME_VIOLENCE (2).epub (470 Ko)`
+- garder  `Library/Books/D/Monique de Kermadec/MONIQUE_DE_KERMADEC__LA_FEMME_SURDOUEE.epub (243 Ko)`
+  - doublon `Library/Books/D/Monique de Kermadec/MONIQUE_DE_KERMADEC__LA_FEMME_SURDOUEE (2).epub (243 Ko)`
+- garder  `Library/Books/D/Negar Djavadi/NEGAR_DJAVADI__ARENE.epub (656 Ko)`
+  - doublon `Library/Books/D/Negar Djavadi/NEGAR_DJAVADI__ARENE (2).epub (656 Ko)`
+- garder  `Library/Books/D/Nicolas Druart/NICOLAS_DRUART__JEU_DE_DAMES.epub (418 Ko)`
+  - doublon `Library/Books/D/Nicolas Druart/DRUART_NICOLAS__JEU_DE_DAMES.epub (418 Ko)`
+- garder  `Library/Books/D/Philippe Boxho Dr/PHILIPPE_BOXHO_DR__ENTRETIEN_AVEC_UN_CADAVRE.epub (5169 Ko)`
+  - doublon `Library/Books/D/Philippe Boxho Dr/PHILIPPE_BOXHO_DR__ENTRETIEN_AVEC_UN_CADAVRE (2).epub (5170 Ko)`
+- garder  `Library/Books/D/Philippe Durant/PHILIPPE_DURANT__ENCYCLOPEDIE_DES_REPLIQUES_DE_FILMS_TOME_1.epub (423 Ko)`
+  - doublon `Library/Books/D/Philippe Durant/DURANT_PHILIPPE__ENCYCLOPEDIE_DES_REPLIQUES_DE_FILMS_TOME_2.epub (404 Ko)`
+- garder  `Library/Books/D/Philippe Moreau Defarges/PHILIPPE_MOREAU_DEFARGES__L_HISTOIRE_DU_MONDE_POUR_LES_NULS_GRAND_FORMAT_3E_ED.epub (5346 Ko)`
+  - doublon `Library/Books/D/Philippe Moreau Defarges/PHILIPPE_MOREAU_DEFARGES__L_HISTOIRE_DU_MONDE_POUR_LES_NULS_GRAND_FORMAT_3E_ED (2).epub (5346 Ko)`
+- garder  `Library/Books/D/Philippe Moreau Defarges/PHILIPPE_MOREAU_DEFARGES__LA_GEOPOLITIQUE_POUR_LES_NULS_EN_50_NOTIONS_CLES.epub (973 Ko)`
+  - doublon `Library/Books/D/Philippe Moreau Defarges/PHILIPPE_MOREAU_DEFARGES__LA_GEOPOLITIQUE_POUR_LES_NULS_EN_50_NOTIONS_CLES (2).epub (973 Ko)`
+- garder  `Library/Books/D/Renaud de Chaumaray/RENAUD_DE_CHAUMARAY__QUITTER_LA_VALLEE.epub (235 Ko)`
+  - doublon `Library/Books/D/Renaud de Chaumaray/RENAUD_DE_CHAUMARAY__QUITTER_LA_VALLEE (2).epub (235 Ko)`
+- garder  `Library/Books/E/Andreas Eschbach/ANDREAS_ESCHBACH__DES_MILLIARDS_DE_TAPIS_DE_CHEVEUX.epub (1241 Ko)`
+  - doublon `Library/Books/E/Andreas Eschbach/ANDREAS_ESCHBACH__DES_MILLIARDS_DE_TAPIS_DE_CHEVEUX (2).epub (1241 Ko)`
+- garder  `Library/Books/E/Annie Ernaux/ANNIE_ERNAUX__LA_FEMME_GELEE.epub (5375 Ko)`
+  - doublon `Library/Books/E/Annie Ernaux/ERNAUX_ANNIE__LA_FEMME_GELEE.epub (5286 Ko)`
+- garder  `Library/Books/E/George Eliot/GEORGE_ELIOT__MIDDLEMARCH_TOME_I.epub (1060 Ko)`
+  - doublon `Library/Books/E/George Eliot/GEORGE_ELIOT__MIDDLEMARCH_TOME_I (2).epub (1061 Ko)`
+- garder  `Library/Books/A/Margaret Atwood/MARGARET_ATWOOD__LA_SERVANTE_ECARLATE_NOUVELLE_TRADUCTION.epub (504 Ko)`
+  - doublon `Library/Books/E/Margaret Atwood La Servante Ecarlate/MARGARET_ATWOOD_LA_SERVANTE_ECARLATE__NOUVELLE_TRADUCTION.epub (504 Ko)`
+- garder  `Library/Books/E/Vincent Moret James Eade/VINCENT_MORET_JAMES_EADE__LES_ECHECS_POUR_LES_NULS.epub (3585 Ko)`
+  - doublon `Library/Books/E/Vincent Moret James Eade/JAMES_EADE_VINCENT_MORET__LES_ECHECS_POUR_LES_NULS.epub (3585 Ko)`
+- garder  `Library/Books/E/Zamiatine Evgueni/EVGUENI_ZAMIATINE__NOUS.epub (492 Ko)`
+  - doublon `Library/Books/E/Zamiatine Evgueni/ZAMIATINE_EVGUENI__NOUS.epub (492 Ko)`
+- garder  `Library/Books/F/Anouck Faure/ANOUCK_FAURE__AATEA.epub (7603 Ko)`
+  - doublon `Library/Books/F/Anouck Faure/ANOUCK_FAURE__AATEA (2).epub (7603 Ko)`
+- garder  `Library/Books/L/Pour les Nuls/POUR_LES_NULS__LES_100_CHEFS_D_OEUVRE_DU_CLASSIQUE_BENJAMIN_FRANCOIS.epub (1002 Ko)`
+  - doublon `Library/Books/F/Benjamin François/BENJAMIN_FRANCOIS__LES_100_CHEFS_D_OEUVRE_DU_CLASSIQUE_POUR_LES_NULS.epub (1001 Ko)`
+- garder  `Library/Books/F/Frederick Forsyth/FREDERICK_FORSYTH__THE_DAY_OF_THE_JACKAL.epub (399 Ko)`
+  - doublon `Library/Books/F/Frederick Forsyth/FREDERICK_FORSYTH__THE_DAY_OF_THE_JACKAL (2).epub (399 Ko)`
+- garder  `Library/Books/F/Gaël Faye/GAEL_FAYE__JACARANDA.epub (367 Ko)`
+  - doublon `Library/Books/F/Gaël Faye/GAEL_FAYE__JACARANDA (2).epub (368 Ko)`
+- garder  `Library/Books/F/Hans Fallada/HANS_FALLADA__SEUL_DANS_BERLIN.epub (616 Ko)`
+  - doublon `Library/Books/F/Hans Fallada/HANS_FALLADA__SEUL_DANS_BERLIN (2).epub (617 Ko)`
+- garder  `Library/Books/F/Hélène Frappat/HELENE_FRAPPAT__LE_GASLIGHTING_OU_L_ART_DE_FAIRE_TAIRE_LES_FEMMES.epub (5711 Ko)`
+  - doublon `Library/Books/F/Hélène Frappat/HELENE_FRAPPAT__LE_GASLIGHTING_OU_L_ART_DE_FAIRE_TAIRE_LES_FEMMES (2).epub (5711 Ko)`
+- garder  `Library/Books/F/Hélène Frappat/HELENE_FRAPPAT__NERONA.epub (444 Ko)`
+  - doublon `Library/Books/F/Hélène Frappat/HELENE_FRAPPAT__NERONA (2).epub (444 Ko)`
+- garder  `Library/Books/F/Irène Frain/IRENE_FRAIN__UN_CRIME_SANS_IMPORTANCE.epub (5330 Ko)`
+  - doublon `Library/Books/F/Irène Frain/IRENE_FRAIN__UN_CRIME_SANS_IMPORTANCE (2).epub (5505 Ko)`
+- garder  `Library/Books/F/Reynaert François/REYNAERT_FRANCOIS__LA_GRANDE_HISTOIRE_DU_MONDE.epub (2041 Ko)`
+  - doublon `Library/Books/F/Reynaert François/REYNAERT_FRANCOIS__LA_GRANDE_HISTOIRE_DU_MONDE (2).epub (2041 Ko)`
+- garder  `Library/Books/G/Alice Geraud/ALICE_GERAUD__SAMBRE_RADIOSCOPIE_D_UN_FAIT_DIVERS.epub (1416 Ko)`
+  - doublon `Library/Books/G/Alice Geraud/ALICE_GERAUD__SAMBRE_RADIOSCOPIE_D_UN_FAIT_DIVERS (2).epub (1416 Ko)`
+- garder  `Library/Books/G/André Gide/ANDRE_GIDE__SOUVENIRS_DE_LA_COUR_D_ASSISES.epub (109 Ko)`
+  - doublon `Library/Books/G/André Gide/ANDRE_GIDE__SOUVENIRS_DE_LA_COUR_D_ASSISES (2).epub (110 Ko)`
+- garder  `Library/Books/G/Aymen Gharbi/AYMEN_GHARBI__LA_VILLE_DES_IMPASSES.epub (162 Ko)`
+  - doublon `Library/Books/G/Aymen Gharbi/AYMEN_GHARBI__LA_VILLE_DES_IMPASSES (2).epub (162 Ko)`
+- garder  `Library/Books/G/David Grann/DAVID_GRANN__LES_NAUFRAGES_DU_WAGER.epub (1772 Ko)`
+  - doublon `Library/Books/G/David Grann/DAVID_GRANN__LES_NAUFRAGES_DU_WAGER (2).epub (1772 Ko)`
+- garder  `Library/Books/G/Laurent Gaude/LAURENT_GAUDE__LE_SOLEIL_DES_SCORTA.epub (198 Ko)`
+  - doublon `Library/Books/G/Laurent Gaude/LAURENT_GAUDE__LE_SOLEIL_DES_SCORTA (2).epub (198 Ko)`
+- garder  `Library/Books/G/Laurent Gounelle/LAURENT_GOUNELLE__INTUITIO.epub (5353 Ko)`
+  - doublon `Library/Books/G/Laurent Gounelle/LAURENT_GOUNELLE__INTUITIO (2).epub (5353 Ko)`
+- garder  `Library/Books/G/Olivier Guez/OLIVIER_GUEZ__MESOPOTAMIA.epub (386 Ko)`
+  - doublon `Library/Books/G/Olivier Guez/OLIVIER_GUEZ__MESOPOTAMIA (2).epub (386 Ko)`
+- garder  `Library/Books/G/Paul Gasnier/PAUL_GASNIER__LA_COLLISION.epub (200 Ko)`
+  - doublon `Library/Books/G/Paul Gasnier/PAUL_GASNIER__LA_COLLISION (2).epub (200 Ko)`
+- garder  `Library/Books/G/Thomas Gomart/THOMAS_GOMART__L_AFFOLEMENT_DU_MONDE_10_ENJEUX_GEOPOLITIQUES.epub (1157 Ko)`
+  - doublon `Library/Books/G/Thomas Gomart/THOMAS_GOMART__L_AFFOLEMENT_DU_MONDE_10_ENJEUX_GEOPOLITIQUES (2).epub (1156 Ko)`
+- garder  `Library/Books/G/Yvan Godbout/YVAN_GODBOUT__LES_CONTES_INTERDITS_HANSEL_ET_GRETEL.epub (1128 Ko)`
+  - doublon `Library/Books/G/Yvan Godbout/YVAN_GODBOUT__LES_CONTES_INTERDITS_HANSEL_ET_GRETEL (2).epub (1128 Ko)`
+- garder  `Library/Books/H/Caroline Hinault/CAROLINE_HINAULT__TRAVERSER_LES_FORETS.epub (169 Ko)`
+  - doublon `Library/Books/H/Caroline Hinault/CAROLINE_HINAULT__TRAVERSER_LES_FORETS (2).epub (168 Ko)`
+- garder  `Library/Books/H/Claudie Hunzinger/CLAUDIE_HUNZINGER_CLAUDIE_HUNZINGER__IL_NEIGE_SUR_LE_PIANISTE.epub (631 Ko)`
+  - doublon `Library/Books/H/Claudie Hunzinger/CLAUDIE_HUNZINGER__IL_NEIGE_SUR_LE_PIANISTE.epub (631 Ko)`
+- garder  `Library/Books/H/Jean Hegland/JEAN_HEGLAND__DANS_LA_FORET.epub (475 Ko)`
+  - doublon `Library/Books/H/Jean Hegland/JEAN_HEGLAND__DANS_LA_FORET (2).epub (475 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__AVENTURES_D_UN_GOURMAND_VAGABOND.epub (466 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__AVENTURES_D_UN_GOURMAND_VAGABOND (2).epub (466 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__DALVA.epub (444 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__DALVA (2).epub (444 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__MARQUETTE_A_VERACRUZ_DE.epub (514 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__DE_MARQUETTE_A_VERACRUZ.epub (455 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__EN_MARGE.epub (476 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__EN_MARGE (2).epub (476 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__EN_ROUTE_VERS_L_OUEST.epub (1166 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__EN_ROUTE_VERS_L_OUEST (2).epub (1292 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__JULIP.epub (836 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__JULIP (2).epub (836 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__L_ETE_OU_IL_FAILLIT_MOURIR.epub (673 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__L_ETE_OU_IL_FAILLIT_MOURIR (2).epub (726 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__LA_FEMME_AUX_LUCIOLES.epub (758 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__LA_FEMME_AUX_LUCIOLES (2).epub (758 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__LE_VIEUX_SALTIMBANQUE.epub (203 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__LE_VIEUX_SALTIMBANQUE (2).epub (202 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__LES_JEUX_DE_LA_NUIT.epub (288 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__LES_JEUX_DE_LA_NUIT (2).epub (288 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__NAGEUR_DE_RIVIERE.epub (1843 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__NAGEUR_DE_RIVIERE (2).epub (1843 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__RETOUR_EN_TERRE.epub (249 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__RETOUR_EN_TERRE (2).epub (249 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__UN_BON_JOUR_POUR_MOURIR.epub (334 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__UN_BON_JOUR_POUR_MOURIR (2).epub (334 Ko)`
+- garder  `Library/Books/H/Jim Harrison/JIM_HARRISON__UNE_ODYSSEE_AMERICAINE.epub (450 Ko)`
+  - doublon `Library/Books/H/Jim Harrison/JIM_HARRISON__UNE_ODYSSEE_AMERICAINE (2).epub (451 Ko)`
+- garder  `Library/Books/H/Marta Hillers/MARTA_MARTA_HILLERS_HILLERS__UNE_FEMME_A_BERLIN.epub (351 Ko)`
+  - doublon `Library/Books/H/Marta Hillers/MARTA_HILLERS__UNE_FEMME_A_BERLIN.epub (350 Ko)`
+- garder  `Library/Books/H/Matt Haig/MATT_HAIG__LA_BIBLIOTHEQUE_DE_MINUIT.epub (315 Ko)`
+  - doublon `Library/Books/H/Matt Haig/MATT_HAIG__LA_BIBLIOTHEQUE_DE_MINUIT (2).epub (315 Ko)`
+- garder  `Library/Books/H/Nathan Hill/NATHAN_HILL__BIEN_ETRE.epub (910 Ko)`
+  - doublon `Library/Books/H/Nathan Hill/NATHAN_HILL__BIEN_ETRE (2).epub (910 Ko)`
+- garder  `Library/Books/H/Sebastian Haffner/SEBASTIAN_HAFFNER__HISTOIRE_D_UN_ALLEMAND.epub (317 Ko)`
+  - doublon `Library/Books/H/Sebastian Haffner/SEBASTIAN_HAFFNER__HISTOIRE_D_UN_ALLEMAND (2).epub (317 Ko)`
+- garder  `Library/Books/I/John Irving/JOHN_IRVING__JE_TE_RETROUVERAI.epub (847 Ko)`
+  - doublon `Library/Books/I/John Irving/JOHN_IRVING__JE_TE_RETROUVERAI (2).epub (847 Ko)`
+- garder  `Library/Books/I/Le Malade Imaginaire/LE_MALADE_IMAGINAIRE__MOLIERE.epub (513 Ko)`
+  - doublon `Library/Books/M/Moliere/MOLIERE__LE_MALADE_IMAGINAIRE.epub (513 Ko)`
+- garder  `Library/Books/I/Nemirovsky Irene/IRENE_NEMIROVSKY__LE_BAL.epub (94 Ko)`
+  - doublon `Library/Books/I/Nemirovsky Irene/NEMIROVSKY_IRENE__LE_BAL.epub (69 Ko)`
+- garder  `Library/Books/J/Echenoz Jean/ECHENOZ_JEAN__BRISTOL.epub (5270 Ko)`
+  - doublon `Library/Books/E/Echenoz, Jean & Jean Echenoz/ECHENOZ_JEAN_JEAN_ECHENOZ__BRISTOL.epub (5270 Ko)`
+- garder  `Library/Books/J/Green John/GREEN_JOHN__NOS_ETOILES_CONTRAIRES.epub (1471 Ko)`
+  - doublon `Library/Books/J/Green John/GREEN_JOHN__NOS_ETOILES_CONTRAIRES (2).epub (1471 Ko)`
+- garder  `Library/Books/J/Laurent Jullier/LAURENT_JULLIER__ANALYSER_UN_FILM.epub (2396 Ko)`
+  - doublon `Library/Books/J/Laurent Jullier/LAURENT_JULLIER__ANALYSER_UN_FILM (2).epub (2396 Ko)`
+- garder  `Library/Books/J/Philippe Jaenada/PHILIPPE_JAENADA__LA_DESINVOLTURE_EST_UNE_BIEN_BELLE_CHOSE.epub (647 Ko)`
+  - doublon `Library/Books/J/Philippe Jaenada/PHILIPPE_JAENADA__LA_DESINVOLTURE_EST_UNE_BIEN_BELLE_CHOSE (2).epub (647 Ko)`
+- garder  `Library/Books/G/La Familia Grande/LA_FAMILIA_GRANDE__CAMILLE_KOUCHNER.epub (5166 Ko)`
+  - doublon `Library/Books/K/Camille Kouchner/CAMILLE_KOUCHNER__LA_FAMILIA_GRANDE.epub (5166 Ko)`
+- garder  `Library/Books/K/Franz Kafka/FRANZ_KAFKA__LA_METAMORPHOSE_SUIVI_DE_DANS_LA_COLONIE_PENITENTIAIRE.epub (104 Ko)`
+  - doublon `Library/Books/K/Franz Kafka/FRANZ_KAFKA__LA_METAMORPHOSE_SUIVI_DE_DANS_LA_COLONIE_PENITENTIAIRE (2).epub (104 Ko)`
+- garder  `Library/Books/K/Franz Kafka/FRANZ_KAFKA__LE_PROCES.epub (613 Ko)`
+  - doublon `Library/Books/K/Franz Kafka/FRANZ_KAFKA__LE_PROCES (2).epub (613 Ko)`
+- garder  `Library/Books/K/Milan Kundera/MILAN_KUNDERA__L_INSOUTENABLE_LEGERETE_DE_L_ETRE.epub (5292 Ko)`
+  - doublon `Library/Books/K/Milan Kundera/insoutenable légéreté de l'être, L' - Milan Kundera.epub (5292 Ko)`
+  - doublon `Library/Books/K/Milan Kundera/MILAN_KUNDERA__L_INSOUTENABLE_LEGERETE_DE_L_ETRE_2.epub (321 Ko)`
+  - doublon `Library/Books/K/Milan Kundera/MILAN_KUNDERA__L_INSOUTENABLE_LEGERETE_DE_L_ETRE (2).epub (321 Ko)`
+- garder  `Library/Books/K/R. F. Kuang/R_F_KUANG__BABEL_OR_THE_NECESSITY_OF_VIOLENCE_AN_ARCANE_HISTORY_OF_THE_OXFORD_TRANSLATORS_REVOLUTION.epub (1127 Ko)`
+  - doublon `Library/Books/K/R. F. Kuang/R_F_KUANG__BABEL_OR_THE_NECESSITY_OF_VIOLENCE_AN_ARCANE_HISTORY_OF_THE_OXFORD_TRANSLATORS_REVOLUTION (2).epub (1127 Ko)`
+- garder  `Library/Books/K/R. F. Kuang/R_F_KUANG__LA_GUERRE_DU_PAVOT.epub (832 Ko)`
+  - doublon `Library/Books/K/R. F. Kuang/R_F_KUANG__LA_GUERRE_DU_PAVOT (2).epub (991 Ko)`
+- garder  `Library/Books/K/Yasmina Khadra/KHADRA_YASMINA__LES_HIRONDELLES_DE_KABOUL.epub (261 Ko)`
+  - doublon `Library/Books/K/Yasmina Khadra/YASMINA_KHADRA__LES_HIRONDELLES_DE_KABOUL.epub (261 Ko)`
+- garder  `Library/Books/K/Yasmina Khadra/YASMINA_KHADRA__L_ATTENTAT.epub (709 Ko)`
+  - doublon `Library/Books/K/Yasmina Khadra/YASMINA_KHADRA__L_ATTENTAT (2).epub (709 Ko)`
+- garder  `Library/Books/L/Alexis Laipsker/ALEXIS_LAIPSKER__HURLEMENTS.epub (313 Ko)`
+  - doublon `Library/Books/L/Alexis Laipsker/ALEXIS_LAIPSKER__HURLEMENTS (2).epub (313 Ko)`
+- garder  `Library/Books/L/Blanka Lipinska/BLANKA_LIPINSKA__365_JOURS_TOME_1 (2).epub (432 Ko)`
+  - doublon `Library/Books/L/Blanka Lipinska/BLANKA_LIPINSKA__365_JOURS_TOME_1.epub (432 Ko)`
+- garder  `Library/Books/L/Christina Lauren/CHRISTINA_LAUREN__BEAUTIFUL_BASTARD_VERSION_FRANCAISE_FRENCH_EDITION.epub (2034 Ko)`
+  - doublon `Library/Books/L/Christina Lauren/LAUREN_CHRISTINA__BEAUTIFUL_BASTARD_VERSION_FRANCAISE_FRENCH_EDITION.epub (2034 Ko)`
+- garder  `Library/Books/L/Emmanuelle Lambert/EMMANUELLE_LAMBERT__AUCUN_RESPECT.epub (384 Ko)`
+  - doublon `Library/Books/L/Emmanuelle Lambert/EMMANUELLE_LAMBERT__AUCUN_RESPECT (2).epub (384 Ko)`
+- garder  `Library/Books/L/John Le Carre/JOHN_LE_CARRE__UNE_VERITE_SI_DELICATE.epub (331 Ko)`
+  - doublon `Library/Books/L/John Le Carre/JOHN_LE_CARRE__UNE_VERITE_SI_DELICATE (2).epub (331 Ko)`
+- garder  `Library/Books/L/Lola Lafon/LOLA_LAFON__QUAND_TU_ECOUTERAS_CETTE_CHANSON.epub (175 Ko)`
+  - doublon `Library/Books/L/Lola Lafon/LOLA_LAFON__QUAND_TU_ECOUTERAS_CETTE_CHANSON (2).epub (175 Ko)`
+- garder  `Library/Books/L/Marc Levy/MARC_LEVY__LA_LIBRAIRIE_DES_LIVRES_INTERDITS.epub (365 Ko)`
+  - doublon `Library/Books/L/Marc Levy/MARC_LEVY__LA_LIBRAIRIE_DES_LIVRES_INTERDITS (2).epub (365 Ko)`
+- garder  `Library/Books/L/Michelle Perrot Titiou Lecoq/MICHELLE_PERROT_TITIOU_LECOQ__LES_GRANDES_OUBLIEES.epub (5848 Ko)`
+  - doublon `Library/Books/L/Michelle Perrot Titiou Lecoq/TITIOU_LECOQ_MICHELLE_PERROT__LES_GRANDES_OUBLIEES.epub (5848 Ko)`
+- garder  `Library/Books/L/Philippe Lancon/LANCON_PHILIPPE__LE_LAMBEAU.epub (445 Ko)`
+  - doublon `Library/Books/L/Philippe Lancon/PHILIPPE_LANCON__LE_LAMBEAU.epub (445 Ko)`
+  - doublon `Library/Books/L/Philippe Lancon/PHILIPPE_LANCON__LE_LAMBEAU (2).epub (445 Ko)`
+- garder  `Library/Books/L/Rebecca Lighieri/REBECCA_LIGHIERI__LE_CLUB_DES_ENFANTS_PERDUS.epub (446 Ko)`
+  - doublon `Library/Books/L/Rebecca Lighieri/REBECCA_LIGHIERI__LE_CLUB_DES_ENFANTS_PERDUS (2).epub (446 Ko)`
+- garder  `Library/Books/L/Yanick Lahens/YANICK_LAHENS__PASSAGERES_DE_NUIT.epub (178 Ko)`
+  - doublon `Library/Books/L/Yanick Lahens/YANICK_LAHENS__PASSAGERES_DE_NUIT (2).epub (178 Ko)`
+- garder  `Library/Books/M/Agnes Martin-lugand/AGNES_MARTIN_LUGAND__LA_DATCHA.epub (673 Ko)`
+  - doublon `Library/Books/M/Agnes Martin-lugand/AGNES_MARTIN_LUGAND__LA_DATCHA (2).epub (687 Ko)`
+- garder  `Library/Books/M/Agnes Martin-lugand/AGNES_MARTIN_LUGAND__NOS_RESILIENCES.epub (423 Ko)`
+  - doublon `Library/Books/M/Agnes Martin-lugand/AGNES_MARTIN_LUGAND__NOS_RESILIENCES (2).epub (423 Ko)`
+- garder  `Library/Books/M/Majdalani Charif & Charif Majdalani/MAJDALANI_CHARIF_CHARIF_MAJDALANI__LE_NOM_DES_ROIS.epub (226 Ko)`
+  - doublon `Library/Books/M/Charif Majdalani/CHARIF_MAJDALANI__LE_NOM_DES_ROIS.epub (226 Ko)`
+- garder  `Library/Books/M/Christophe Molmy/CHRISTOPHE_MOLMY__APRES_LE_JOUR.epub (359 Ko)`
+  - doublon `Library/Books/M/Christophe Molmy/CHRISTOPHE_MOLMY__APRES_LE_JOUR (2).epub (359 Ko)`
+- garder  `Library/Books/M/Christophe Molmy/CHRISTOPHE_MOLMY__LES_LOUPS_BLESSES.epub (291 Ko)`
+  - doublon `Library/Books/M/Christophe Molmy/CHRISTOPHE_MOLMY__LES_LOUPS_BLESSES (2).epub (291 Ko)`
+- garder  `Library/Books/M/Christophe Molmy/CHRISTOPHE_MOLMY__QUELQUE_PART_ENTRE_LE_BIEN_ET_LE_MAL.epub (321 Ko)`
+  - doublon `Library/Books/M/Christophe Molmy/CHRISTOPHE_MOLMY__QUELQUE_PART_ENTRE_LE_BIEN_ET_LE_MAL (2).epub (320 Ko)`
+- garder  `Library/Books/M/Claire Mcgowan/CLAIRE_MCGOWAN__DEUX_VERITES_UN_MENSONGE.epub (844 Ko)`
+  - doublon `Library/Books/M/Claire Mcgowan/CLAIRE_MCGOWAN__DEUX_VERITES_UN_MENSONGE (2).epub (844 Ko)`
+- garder  `Library/Books/M/Lafon Marie-Hélène/LAFON_MARIE_HELENE__NOS_VIES.epub (394 Ko)`
+  - doublon `Library/Books/M/Lafon Marie-Hélène/MARIE_HELENE_LAFON__NOS_VIES.epub (394 Ko)`
+- garder  `Library/Books/M/Lafon Marie-Hélène/MARIE_HELENE_LAFON__LES_SOURCES.epub (5190 Ko)`
+  - doublon `Library/Books/M/Lafon Marie-Hélène/MARIE_HELENE_LAFON__LES_SOURCES (2).epub (5190 Ko)`
+- garder  `Library/Books/M/Nicolas Mathieu/NICOLAS_MATHIEU__LEURS_ENFANTS_APRES_EUX.epub (5278 Ko)`
+  - doublon `Library/Books/M/Nicolas Mathieu/NICOLAS_MATHIEU__LEURS_ENFANTS_APRES_EUX (2).epub (5278 Ko)`
+- garder  `Library/Books/M/Patrick Modiano/PATRICK_MODIANO__LA_DANSEUSE.epub (492 Ko)`
+  - doublon `Library/Books/M/Patrick Modiano/PATRICK_MODIANO__LA_DANSEUSE (2).epub (492 Ko)`
+- garder  `Library/Books/M/Pierre Michon/PIERRE_MICHON__LES_DEUX_BEUNE.epub (198 Ko)`
+  - doublon `Library/Books/M/Pierre Michon/PIERRE_MICHON__LES_DEUX_BEUNE (2).epub (198 Ko)`
+- garder  `Library/Books/M/Richard Malka/RICHARD_MALKA__TRAITE_SUR_L_INTOLERANCE.epub (5485 Ko)`
+  - doublon `Library/Books/M/Richard Malka/RICHARD_MALKA__TRAITE_SUR_L_INTOLERANCE (3).epub (137 Ko)`
+  - doublon `Library/Books/M/Richard Malka/RICHARD_MALKA__TRAITE_SUR_L_INTOLERANCE (2).epub (137 Ko)`
+- garder  `Library/Books/M/Tiffany McDaniel/TIFFANY_MCDANIEL__BETTY.epub (590 Ko)`
+  - doublon `Library/Books/M/Tiffany McDaniel/TIFFANY_MCDANIEL__BETTY (2).epub (591 Ko)`
+- garder  `Library/Books/N/Amelie Nothomb/AMELIE_NOTHOMB__PSYCHOPOMPE.epub (185 Ko)`
+  - doublon `Library/Books/N/Amelie Nothomb/AMELIE_NOTHOMB__PSYCHOPOMPE (2).epub (184 Ko)`
+- garder  `Library/Books/N/Olivier Norek/OLIVIER_NOREK__IMPACT.epub (372 Ko)`
+  - doublon `Library/Books/N/Olivier Norek/OLIVIER_NOREK__IMPACT (2).epub (372 Ko)`
+- garder  `Library/Books/N/Olivier Norek/OLIVIER_NOREK__LES_GUERRIERS_DE_L_HIVER.epub (5247 Ko)`
+  - doublon `Library/Books/N/Olivier Norek/OLIVIER_NOREK__LES_GUERRIERS_DE_L_HIVER (2).epub (5196 Ko)`
+- garder  `Library/Books/N/Olivier Norek/OLIVIER_NOREK__SURFACE.epub (459 Ko)`
+  - doublon `Library/Books/N/Olivier Norek/OLIVIER_NOREK__SURFACE (2).epub (459 Ko)`
+- garder  `Library/Books/N/Olivier Norek/OLIVIER_NOREK__VICTOR_COSTE_T4_DANS_LES_BRUMES_DE_CAPELANS.epub (541 Ko)`
+  - doublon `Library/Books/N/Olivier Norek/OLIVIER_NOREK__VICTOR_COSTE_T4_DANS_LES_BRUMES_DE_CAPELANS (2).epub (541 Ko)`
+- garder  `Library/Books/N/Sosuke Natsukawa/SOSUKE_NATSUKAWA__LE_CHAT_QUI_VOULAIT_SAUVER_LES_LIVRES.epub (514 Ko)`
+  - doublon `Library/Books/N/Sosuke Natsukawa/SOSUKE_NATSUKAWA__LE_CHAT_QUI_VOULAIT_SAUVER_LES_LIVRES (2).epub (514 Ko)`
+- garder  `Library/Books/O/George Orwell/GEORGE_ORWELL__LA_FERME_DES_ANIMAUX.epub (109 Ko)`
+  - doublon `Library/Books/O/George Orwell/GEORGE_ORWELL__LA_FERME_DES_ANIMAUX (2).epub (141 Ko)`
+- garder  `Library/Books/P/Edgar Allan Poe/EDGAR_ALLAN_POE__OEUVRES.epub (3141 Ko)`
+  - doublon `Library/Books/P/Edgar Allan Poe/EDGAR_ALLAN_POE__EDGAR_ALLAN_POE_OEUVRES.epub (3141 Ko)`
+- garder  `Library/Books/P/Franck Pavloff/FRANCK_PAVLOFF__MATIN_BRUN.epub (25 Ko)`
+  - doublon `Library/Books/P/Franck Pavloff/FRANCK_PAVLOFF__MATIN_BRUN (2).epub (25 Ko)`
+- garder  `Library/Books/P/Frédéric Paulin/FREDERIC_PAULIN__LA_DIGNITE_DES_PSYCHOPATHES.epub (318 Ko)`
+  - doublon `Library/Books/P/Frédéric Paulin/FREDERIC_PAULIN__LA_DIGNITE_DES_PSYCHOPATHES (2).epub (318 Ko)`
+- garder  `Library/Books/P/Frédéric Paulin/FREDERIC_PAULIN__LA_FABRIQUE_DE_LA_TERREUR.epub (352 Ko)`
+  - doublon `Library/Books/P/Frédéric Paulin/FREDERIC_PAULIN__LA_FABRIQUE_DE_LA_TERREUR (2).epub (353 Ko)`
+- garder  `Library/Books/P/Frédéric Paulin/FREDERIC_PAULIN__LA_GUERRE_EST_UNE_RUSE.epub (366 Ko)`
+  - doublon `Library/Books/P/Frédéric Paulin/FREDERIC_PAULIN__LA_GUERRE_EST_UNE_RUSE (2).epub (366 Ko)`
+- garder  `Library/Books/P/Frédéric Paulin/FREDERIC_PAULIN__LES_PENDUS_DU_VAL_SANS_RETOUR.epub (328 Ko)`
+  - doublon `Library/Books/P/Frédéric Paulin/FREDERIC_PAULIN__LES_PENDUS_DU_VAL_SANS_RETOUR (2).epub (329 Ko)`
+- garder  `Library/Books/P/Frédéric Paulin/FREDERIC_PAULIN__PREMICES_DE_LA_CHUTE.epub (323 Ko)`
+  - doublon `Library/Books/P/Frédéric Paulin/FREDERIC_PAULIN__PREMICES_DE_LA_CHUTE (2).epub (323 Ko)`
+- garder  `Library/Books/P/Jean-Francois Pasques/JEAN_FRANCOIS_PASQUES__FILS_DE_PERSONNE.epub (305 Ko)`
+  - doublon `Library/Books/P/Jean-Francois Pasques/JEAN_FRANCOIS_PASQUES__FILS_DE_PERSONNE (2).epub (355 Ko)`
+- garder  `Library/Books/P/Michael Palmer/MICHAEL_PALMER__A_HEARTBEAT_AWAY.epub (893 Ko)`
+  - doublon `Library/Books/P/Michael Palmer/MICHAEL_PALMER__A_HEARTBEAT_AWAY (2).epub (893 Ko)`
+- garder  `Library/Books/P/Panayotis Pascot/PASCOT_PANAYOTIS__LA_PROCHAINE_FOIS_QUE_TU_MORDRAS_LA_POUSSIERE.epub (642 Ko)`
+  - doublon `Library/Books/P/Panayotis Pascot/PANAYOTIS_PASCOT__LA_PROCHAINE_FOIS_QUE_TU_MORDRAS_LA_POUSSIERE.epub (642 Ko)`
+- garder  `Library/Books/Q/Jeanne Quilfen/JEANNE_QUILFEN__DANS_LES_YEUX_DU_PROCUREUR_CHRONIQUE_DE_LA_JUSTICE_ORDINAIRE_FRENCH_EDITION.epub (282 Ko)`
+  - doublon `Library/Books/Q/Jeanne Quilfen/JEANNE_QUILFEN__DANS_LES_YEUX_DU_PROCUREUR_CHRONIQUE_DE_LA_JUSTICE_ORDINAIRE_FRENCH_EDITION (2).epub (282 Ko)`
+- garder  `Library/Books/R/Arturo Perez Reverte/ARTURO_PEREZ_REVERTE__LA_REINE_DU_SUD.epub (719 Ko)`
+  - doublon `Library/Books/R/Arturo Perez Reverte/ARTURO_PEREZ_REVERTE__LA_REINE_DU_SUD (2).epub (719 Ko)`
+- garder  `Library/Books/R/Dimitri Rouchon-Borie/DIMITRI_ROUCHON_BORIE__LE_CHIEN_DES_ETOILES.epub (250 Ko)`
+  - doublon `Library/Books/R/Dimitri Rouchon-Borie/DIMITRI_ROUCHON_BORIE__LE_CHIEN_DES_ETOILES (2).epub (250 Ko)`
+- garder  `Library/Books/R/Kim Stanley Robinson/Kim Stanley Robinson_Ministère du futur, Le.epub (905 Ko)`
+  - doublon `Library/Books/R/Kim Stanley Robinson/Le ministère du futur (Kim Stanley Robinson) (Z-Library).epub (904 Ko)`
+  - doublon `Library/Books/R/Kim Stanley Robinson/Le ministère du futur (Kim Stanley Robinson) (Z-Library).epub (904 Ko)`
+  - doublon `Library/Books/R/Kim Stanley Robinson/KIM_STANLEY_ROBINSON__LE_MINISTERE_DU_FUTUR.epub (733 Ko)`
+  - doublon `Library/Books/R/Kim Stanley Robinson/KIM_STANLEY_ROBINSON__LE_MINISTERE_DU_FUTUR (2).epub (733 Ko)`
+- garder  `Library/Books/R/Louise Rose/LOUISE_ROSE__LES_PROJECTILES.epub (191 Ko)`
+  - doublon `Library/Books/R/Louise Rose/LOUISE_ROSE__LES_PROJECTILES (2).epub (191 Ko)`
+- garder  `Library/Books/R/Philip Roth/PHILIP_ROTH__SAMPLE_THE_PLOT_AGAINST_AMERICA.epub (44 Ko)`
+  - doublon `Library/Books/R/Philip Roth/PHILIP_ROTH__SAMPLE_THE_PLOT_AGAINST_AMERICA (2).epub (44 Ko)`
+- garder  `Library/Books/R/Véronique Rivat/VERONIQUE_RIVAT__CHATS_NOIRS.epub (1615 Ko)`
+  - doublon `Library/Books/R/Véronique Rivat/VERONIQUE_RIVAT__CHATS_NOIRS (2).epub (1614 Ko)`
+- garder  `Library/Books/S/Alain Bauer Christophe Soullez/Alain Bauer & Christophe Soullez_criminologie pour les nuls, La.epub (833 Ko)`
+  - doublon `Library/Books/S/Alain Bauer Christophe Soullez/Alain Bauer & Christophe Soullez_La Criminologie Pour les Nuls.epub (833 Ko)`
+  - doublon `Library/Books/S/Alain Bauer Christophe Soullez/ALAIN_BAUER_CHRISTOPHE_SOULLEZ__LA_CRIMINOLOGIE_POUR_LES_NULS.epub (833 Ko)`
+  - doublon `Library/Books/S/Alain Bauer Christophe Soullez/ALAIN_BAUER_CHRISTOPHE_SOULLEZ__CRIMINOLOGIE_POUR_LES_NULS_LA_1.epub (6224 Ko)`
+  - doublon `Library/Books/S/Alain Bauer Christophe Soullez/ALAIN_BAUER_CHRISTOPHE_SOULLEZ__LA_CRIMINOLOGIE_POUR_LES_NULS (3).epub (833 Ko)`
+  - doublon `Library/Books/S/Alain Bauer Christophe Soullez/ALAIN_BAUER_CHRISTOPHE_SOULLEZ__LA_CRIMINOLOGIE_POUR_LES_NULS (2).epub (833 Ko)`
+- garder  `Library/Books/S/Andrzej Sapkowski/ANDRZEJ_SAPKOWSKI__SORCELEUR_L_INTEGRALE.epub (4221 Ko)`
+  - doublon `Library/Books/S/Sorceleur/SORCELEUR__L_INTEGRALE_ANDRZEJ_SAPKOWSKI.epub (4221 Ko)`
+- garder  `Library/Books/S/Benoît Severac/BENOIT_SEVERAC__LE_BRUIT_DE_NOS_PAS_PERDUS.epub (346 Ko)`
+  - doublon `Library/Books/S/Benoît Severac/BENOIT_SEVERAC__LE_BRUIT_DE_NOS_PAS_PERDUS (2).epub (346 Ko)`
+- garder  `Library/Books/S/Boualem Sansal/BOUALEM_SANSAL__2084.epub (646 Ko)`
+  - doublon `Library/Books/S/Boualem Sansal/BOUALEM_SANSAL__2084 (2).epub (647 Ko)`
+- garder  `Library/Books/S/Bram Stoker/Stoker, Bram_Dracula.epub (551 Ko)`
+  - doublon `Library/Books/S/Bram Stoker/STOKER_BRAM_STOKER_BRAM__DRACULA.epub (551 Ko)`
+  - doublon `Library/Books/S/Bram Stoker/BRAM_STOKER__DRACULA.epub (302 Ko)`
+  - doublon `Library/Books/S/Bram Stoker/STOKER_BRAM__DRACULA.epub (301 Ko)`
+- garder  `Library/Books/S/Dominique Scali/DOMINIQUE_SCALI__LES_MARINS_NE_SAVENT_PAS_NAGER.epub (1019 Ko)`
+  - doublon `Library/Books/S/Dominique Scali/DOMINIQUE_SCALI__LES_MARINS_NE_SAVENT_PAS_NAGER (2).epub (1019 Ko)`
+- garder  `Library/Books/S/Elif Shafak/ELIF_SHAFAK__LES_FLEUVES_DU_CIEL.epub (1375 Ko)`
+  - doublon `Library/Books/S/Elif Shafak/ELIF_SHAFAK__LES_FLEUVES_DU_CIEL (2).epub (1375 Ko)`
+- garder  `Library/Books/S/Fitzgerald Francis Scott/FRANCIS_SCOTT_FITZGERALD__GATSBY_LE_MAGNIFIQUE.epub (173 Ko)`
+  - doublon `Library/Books/S/Fitzgerald Francis Scott/FITZGERALD_FRANCIS_SCOTT__GATSBY_LE_MAGNIFIQUE.epub (172 Ko)`
+- garder  `Library/Books/S/Jeanne Siaud-Facchin/JEANNE_SIAUD_FACCHIN__UN_PRINTEMPS_POUR_SOI.epub (3355 Ko)`
+  - doublon `Library/Books/S/Jeanne Siaud-Facchin/JEANNE_JEANNE_SIAUD_FACCHIN_SIAUD_FACCHIN__UN_PRINTEMPS_POUR_SOI.epub (3355 Ko)`
+  - doublon `Library/Books/S/Jeanne Siaud-Facchin/JEANNE_SIAUD_FACCHIN__UN_PRINTEMPS_POUR_SOI (2).epub (3355 Ko)`
+- garder  `Library/Books/S/Jeanne Siaud-Facchin/JEANNE_SIAUD_FACCHIN__TROP_INTELLIGENT_POUR_ETRE_HEUREUX_L_ADULTE_SURDOUE.epub (465 Ko)`
+  - doublon `Library/Books/S/Jeanne Siaud-Facchin/JEANNE_SIAUD_FACCHIN__TROP_INTELLIGENT_POUR_ETRE_HEUREUX_L_ADULTE_SURDOUE (2).epub (466 Ko)`
+- garder  `Library/Books/S/Julien Sandrel/JULIEN_SANDREL__MERCI_GRAZIE_THANK_YOU.epub (489 Ko)`
+  - doublon `Library/Books/S/Julien Sandrel/JULIEN_SANDREL__MERCI_GRAZIE_THANK_YOU (2).epub (489 Ko)`
+- garder  `Library/Books/S/Matthieu Suc/SUC_MATTHIEU__LES_ESPIONS_DE_LA_TERREUR.epub (770 Ko)`
+  - doublon `Library/Books/S/Matthieu Suc/MATTHIEU_SUC__LES_ESPIONS_DE_LA_TERREUR.epub (443 Ko)`
+  - doublon `Library/Books/S/Matthieu Suc/MATTHIEU_SUC__LES_ESPIONS_DE_LA_TERREUR (2).epub (442 Ko)`
+- garder  `Library/Books/S/Mohamed Mbougar Sarr/MOHAMED_MBOUGAR_SARR__PURS_HOMMES_DE.epub (1879 Ko)`
+  - doublon `Library/Books/S/Mohamed Mbougar Sarr/MOHAMED_MBOUGAR_SARR__DE_PURS_HOMMES.epub (1879 Ko)`
+- garder  `Library/Books/S/Peter Swanson/PETER_SWANSON__CEUX_QU_ON_SAUVE.epub (395 Ko)`
+  - doublon `Library/Books/S/Peter Swanson/PETER_SWANSON__CEUX_QU_ON_SAUVE (2).epub (395 Ko)`
+- garder  `Library/Books/S/William Shakespeare/WILLIAM_SHAKESPEARE__HAMLET_EDITION_ENRICHIE_FOLIO_CLASSIQUE_FRENCH_EDITION.epub (394 Ko)`
+  - doublon `Library/Books/S/William Shakespeare/WILLIAM_SHAKESPEARE__HAMLET_EDITION_ENRICHIE_FOLIO_CLASSIQUE_FRENCH_EDITION (2).epub (394 Ko)`
+- garder  `Library/Books/S/William Shakespeare/WILLIAM_SHAKESPEARE__LE_ROI_LEAR.epub (617 Ko)`
+  - doublon `Library/Books/S/William Shakespeare/WILLIAM_SHAKESPEARE__LE_ROI_LEAR (2).epub (617 Ko)`
+- garder  `Library/Books/S/William Shakespeare/WILLIAM_WILLIAM_SHAKESPEARE_SHAKESPEARE__MACBETH.epub (706 Ko)`
+  - doublon `Library/Books/S/William Shakespeare/WILLIAM_SHAKESPEARE__MACBETH.epub (706 Ko)`
+- garder  `Library/Books/T/Abdellah Taïa/ABDELLAH_TAIA__LE_BASTION_DES_LARMES.epub (185 Ko)`
+  - doublon `Library/Books/T/Abdellah Taïa/ABDELLAH_TAIA__LE_BASTION_DES_LARMES (2).epub (186 Ko)`
+- garder  `Library/Books/T/Clementine Thiebault/CLEMENTINE_THIEBAULT__EN_VOTRE_INTIME_CONVICTION.epub (283 Ko)`
+  - doublon `Library/Books/T/Clementine Thiebault/CLEMENTINE_THIEBAULT__EN_VOTRE_INTIME_CONVICTION (2).epub (283 Ko)`
+- garder  `Library/Books/T/David Thomas/DAVID_THOMAS__UN_FRERE.epub (200 Ko)`
+  - doublon `Library/Books/T/David Thomas/DAVID_THOMAS__UN_FRERE (2).epub (203 Ko)`
+- garder  `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__LA_FAILLE.epub (481 Ko)`
+  - doublon `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__LA_FAILLE (2).epub (5294 Ko)`
+  - doublon `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__FAILLE_LA_1.epub (482 Ko)`
+- garder  `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__IL_ETAIT_DEUX_FOIS.epub (2300 Ko)`
+  - doublon `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__IL_ETAIT_DEUX_FOIS (2).epub (2300 Ko)`
+- garder  `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__LE_MANUSCRIT_INACHEVE.epub (502 Ko)`
+  - doublon `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__LE_MANUSCRIT_INACHEVE (2).epub (594 Ko)`
+- garder  `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__LE_PLAISIR_DE_LA_PEUR.epub (5536 Ko)`
+  - doublon `Library/Books/D/Le Plaisir de la Peur/LE_PLAISIR_DE_LA_PEUR__FRANCK_THILLIEZ.epub (5536 Ko)`
+- garder  `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__NORFERVILLE.epub (811 Ko)`
+  - doublon `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__NORFERVILLE (2).epub (811 Ko)`
+- garder  `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__SHARKO_ET_HENEBELLE_T13_A_RETARDEMENT.epub (5545 Ko)`
+  - doublon `Library/Books/T/Franck Thilliez/FRANCK_THILLIEZ__SHARKO_ET_HENEBELLE_T13_A_RETARDEMENT (2).epub (5545 Ko)`
+- garder  `Library/Books/L/L'échiquier/L_ECHIQUIER__JEAN_PHILIPPE_TOUSSAINT.epub (229 Ko)`
+  - doublon `Library/Books/T/Jean-Philippe Toussaint/JEAN_PHILIPPE_TOUSSAINT__L_ECHIQUIER.epub (229 Ko)`
+- garder  `Library/Books/T/Karine Tuil/KARINE_TUIL__LA_GUERRE_PAR_D_AUTRES_MOYENS.epub (5286 Ko)`
+  - doublon `Library/Books/T/Karine Tuil/KARINE_TUIL__LA_GUERRE_PAR_D_AUTRES_MOYENS (2).epub (5286 Ko)`
+- garder  `Library/Books/T/Léon Tolstoï/LEON_TOLSTOI__LA_GUERRE_ET_LA_PAIX_TOME_I.epub (540 Ko)`
+  - doublon `Library/Books/T/Léon Tolstoï/LEON_TOLSTOI__LA_GUERRE_ET_LA_PAIX_TOME_I (2).epub (545 Ko)`
+- garder  `Library/Books/T/Marc Trevidic/MARC_TREVIDIC__LE_ROMAN_DU_TERRORISME.epub (259 Ko)`
+  - doublon `Library/Books/T/Marc Trevidic/MARC_TREVIDIC__LE_ROMAN_DU_TERRORISME (2).epub (259 Ko)`
+- garder  `Library/Books/T/Viel Tanguy/TANGUY_VIEL__ARTICLE_353_DU_CODE_PENAL.epub (179 Ko)`
+  - doublon `Library/Books/T/Viel Tanguy/VIEL_TANGUY__ARTICLE_353_DU_CODE_PENAL.epub (179 Ko)`
+- garder  `Library/Books/V/Eric Vuillard/ERIC_VUILLARD__LA_GUERRE_DES_PAUVRES.epub (58 Ko)`
+  - doublon `Library/Books/V/Eric Vuillard/ERIC_VUILLARD__LA_GUERRE_DES_PAUVRES (2).epub (78 Ko)`
+- garder  `Library/Books/V/Florent Vandepitte/FLORENT_VANDEPITTE__LES_GRANDS_DISCOURS_POLITIQUES_POUR_LES_NULS_EN_50_CITATIONS_CLES.epub (5476 Ko)`
+  - doublon `Library/Books/V/Florent Vandepitte/FLORENT_VANDEPITTE__LES_GRANDS_DISCOURS_POLITIQUES_POUR_LES_NULS_EN_50_CITATIONS_CLES (2).epub (5476 Ko)`
+- garder  `Library/Books/V/Laura Vazquez/LAURA_VAZQUEZ__LES_FORCES.epub (578 Ko)`
+  - doublon `Library/Books/V/Laura Vazquez/LAURA_VAZQUEZ__LES_FORCES (2).epub (579 Ko)`
+- garder  `Library/Books/V/Marie Vingtras/MARIE_VINGTRAS__BLIZZARD.epub (5198 Ko)`
+  - doublon `Library/Books/V/Marie Vingtras/MARIE_VINGTRAS__BLIZZARD (2).epub (5198 Ko)`
+- garder  `Library/Books/V/Ocean Vuong/OCEAN_VUONG__UN_BREF_INSTANT_DE_SPLENDEUR.epub (968 Ko)`
+  - doublon `Library/Books/V/Ocean Vuong/OCEAN_VUONG__UN_BREF_INSTANT_DE_SPLENDEUR (2).epub (968 Ko)`
+- garder  `Library/Books/V/Vercors/VERCORS__LES_ANIMAUX_DENATURES.epub (227 Ko)`
+  - doublon `Library/Books/V/Vercors/VERCORS__LES_ANIMAUX_DENATURES (2).epub (227 Ko)`
+- garder  `Library/Books/W/Andy Weir/ANDY_WEIR__PROJECT_HAIL_MARY.epub (514 Ko)`
+  - doublon `Library/Books/W/Andy Weir/ANDY_WEIR__PROJECT_HAIL_MARY (2).epub (514 Ko)`
+- garder  `Library/Books/W/Antoine Wauters/ANTOINE_WAUTERS__HAUTE_FOLIE.epub (5282 Ko)`
+  - doublon `Library/Books/W/Antoine Wauters/ANTOINE_WAUTERS__HAUTE_FOLIE (2).epub (5282 Ko)`
+- garder  `Library/Books/W/Chloe Walsh/CHLOE_WALSH__BOYS_OF_TOMMEN_1_BINDING_13.epub (776 Ko)`
+  - doublon `Library/Books/W/Chloe Walsh 1/CHLOE_WALSH_1__BINDING_13_BOYS_OF_TOMMEN.epub (738 Ko)`
+  - doublon `Library/Books/W/Chloe Walsh/CHLOE_WALSH__BOYS_OF_TOMMEN_1_BINDING_13 (2).epub (776 Ko)`
+- garder  `Library/Books/W/Maurice Barthelemy Charlotte Wils/MAURICE_BARTHELEMY_CHARLOTTE_WILS__FORT_COMME_UN_HYPERSENSIBLE.epub (208 Ko)`
+  - doublon `Library/Books/W/Maurice Barthelemy Charlotte Wils/MAURICE_BARTHELEMY_CHARLOTTE_WILS__FORT_COMME_UN_HYPERSENSIBLE (2).epub (208 Ko)`
+- garder  `Library/Books/W/Tom Wolfe/TOM_WOLFE__LE_BUCHER_DES_VANITES.epub (701 Ko)`
+  - doublon `Library/Books/W/Tom Wolfe/TOM_WOLFE__LE_BUCHER_DES_VANITES (2).epub (701 Ko)`
+- garder  `Library/Books/Z/Alice Zeniter/ALICE_ZENITER__COMME_UN_EMPIRE_DANS_UN_EMPIRE.epub (903 Ko)`
+  - doublon `Library/Books/Z/Alice Zeniter/ALICE_ZENITER__COMME_UN_EMPIRE_DANS_UN_EMPIRE_1.epub (5935 Ko)`
+  - doublon `Library/Books/Z/Alice Zeniter/ALICE_ZENITER__COMME_UN_EMPIRE_DANS_UN_EMPIRE (2).epub (831 Ko)`
+- garder  `Library/Books/Z/Stefan Zweig/STEFAN_ZWEIG__CONSCIENCE_CONTRE_VIOLENCE.epub (1778 Ko)`
+  - doublon `Library/Books/Z/Stefan Zweig/STEFAN_ZWEIG__CONSCIENCE_CONTRE_VIOLENCE (2).epub (1777 Ko)`
+- garder  `Library/Books/D/Le Monde D'Hier/LE_MONDE_D_HIER__STEFAN_ZWEIG.epub (710 Ko)`
+  - doublon `Library/Books/Z/Stefan Zweig/STEFAN_ZWEIG__LE_MONDE_D_HIER.epub (710 Ko)`
+- garder  `Library/GLEN_COOK_LES_ANNALES_DE_LA_COMPAGNIE_NOIRE_INTEGRALE_3.epub (2118 Ko)`
+  - doublon `Library/GLEN_COOK_LES_ANNALES_DE_LA_COMPAGNIE_NOIRE_INTEGRALE_1.epub (1943 Ko)`
+  - doublon `Library/GLEN_COOK_LES_ANNALES_DE_LA_COMPAGNIE_NOIRE_INTEGRALE_2.epub (1454 Ko)`
+- garder  `Library/Books/S/Salomé Saqué/SALOME_SAQUE__RESISTER_FRENCH_EDITION.epub (293 Ko)`
+  - doublon `Library/SAQUE_SALOME_RESISTER_FRENCH_EDITION.epub (293 Ko)`
+- garder  `Library/Traite sur l intolerance.epub (5485 Ko)`
+  - doublon `Library/Traite sur l intolerance 2.epub (137 Ko)`
+- garder  `Library/Books/E/Umberto Eco/UMBERTO_ECO__RECONNAITRE_LE_FASCISME.epub (187 Ko)`
+  - doublon `Library/Books/E/Umberto Eco/UMBERTO_ECO__RECONNAITRE_LE_FASCISME (2).epub (187 Ko)`
+  - doublon `Library/UMBERTO_ECO_RECONNAITRE_LE_FASCISME.epub (202 Ko)`
+
+## D. À la racine de `Library/` sans équivalent dans `Books/` — 91 fichiers
+
+Probablement des livres pas encore rangés plutôt que des doublons ; la passe 2 (métadonnées) le confirmera.
+
+- `Library/1991.epub (5527 Ko)`
+- `Library/ADA_PALMER_L_ALPHABET_DES_CREATEURS.epub (1451 Ko)`
+- `Library/ADA_PALMER_LA_VOLONTE_DE_SE_BATTRE.epub (1291 Ko)`
+- `Library/ADA_PALMER_TERRA_IGNOTA_T5_PEUT_ETRE_LES_ETOILES.epub (530 Ko)`
+- `Library/ANNE_GODARD_NOUS_AUSSI.epub (451 Ko)`
+- `Library/ARTHUR_DREYFUS_LA_PUNITION.epub (1621 Ko)`
+- `Library/BARRELLON_NILS_SEINE_DE_CRIME.epub (409 Ko)`
+- `Library/BERENICE_PICHAT_UN_MARCHE_NOIR.epub (662 Ko)`
+- `Library/BERGMANN_BORIS_MINOTAURE.epub (231 Ko)`
+- `Library/BROWN_PIERCE_RED_RISING.epub (2328 Ko)`
+- `Library/CHATTAM_MAXIME_MORSURES.epub (614 Ko)`
+- `Library/CLAIRE_DUVIVIER_LA_DAME_DE_LA_SEINE.epub (402 Ko)`
+- `Library/CLAIRE_NORTON_LES_ENRACINES.epub (599 Ko)`
+- `Library/CLARKE_EVELYN_UNE_HISTOIRE_QUI_FINIT_MAL.epub (457 Ko)`
+- `Library/DAVID_GEMMELL_DRUSS_LA_LEGENDE.epub (692 Ko)`
+- `Library/DAVID_GEMMELL_LA_LEGENDE_DE_MARCHE_MORT.epub (462 Ko)`
+- `Library/DAVID_GEMMELL_WAYLANDER_III_LE_HEROS_DANS_L_OMBRE.epub (532 Ko)`
+- `Library/DEVI_ANANDA_CHRONIQUE_D_UN_ROYAUME_PERDU.epub (509 Ko)`
+- `Library/DEVILLERS_SONIA_LE_FABULEUX_PIANO.epub (1294 Ko)`
+- `Library/DUMIOT_VICTOR_LOLA_VA_MOURIR.epub (413 Ko)`
+- `Library/EBOOK George Orwell 1984.epub (343 Ko)`
+- `Library/ELGIN_SUZETTE_HADEN_LANGUE_NATALE.epub (559 Ko)`
+- `Library/EMMANUEL_CHASTELLIERE_LE_RESTAURANT_DES_ROBOTS_REVEURS.epub (382 Ko)`
+- `Library/FRANCOIS_HENRI_DESERABLE_LE_PALAIS.epub (425 Ko)`
+- `Library/GEMMELL_DAVID_LEGENDE.epub (895 Ko)`
+- `Library/GIULIANO_DA_EMPOLI_LE_FONDATEUR.epub (274 Ko)`
+- `Library/GLEN_COOK_LES_ANNALES_DE_LA_COMPAGNIE_NOIRE_L_INTEGRALE_TOME_4.epub (2116 Ko)`
+- `Library/GLUKHOVSKY_DMITRY_METRO_2033.epub (1838 Ko)`
+- `Library/HASSAINE_LILIA_JE.epub (5255 Ko)`
+- `Library/HINAULT_CAROLINE_CE_QUI_SE_JOUE.epub (452 Ko)`
+- `Library/HOBB_ROBIN_L_ASSASSIN_ROYAL_10_SERMENTS_ET_DEUILS.epub (828 Ko)`
+- `Library/HOBB_ROBIN_L_ASSASSIN_ROYAL_11_LE_DRAGON_DES_GLACES.epub (858 Ko)`
+- `Library/HOBB_ROBIN_L_ASSASSIN_ROYAL_12_L_HOMME_NOIR.epub (838 Ko)`
+- `Library/HOBB_ROBIN_L_ASSASSIN_ROYAL_5_LA_VOIE_MAGIQUE.epub (1521 Ko)`
+- `Library/HOBB_ROBIN_L_ASSASSIN_ROYAL_6_LA_REINE_SOLITAIRE.epub (953 Ko)`
+- `Library/HOBB_ROBIN_L_ASSASSIN_ROYAL_7_LE_PROPHETE_BLANC.epub (1189 Ko)`
+- `Library/HOBB_ROBIN_L_ASSASSIN_ROYAL_8_LA_SECTE_MAUDITE.epub (1129 Ko)`
+- `Library/HOBB_ROBIN_L_ASSASSIN_ROYAL_9_LES_SECRETS_DE_CASTELCERF.epub (1049 Ko)`
+- `Library/IRIS_BREY_LE_REGARD_FEMININ_UNE_REVOLUTION_A_L_ECRAN.epub (214 Ko)`
+- `Library/IRIS_BREY_SEX_AND_THE_SERIES.epub (270 Ko)`
+- `Library/JEAN_LUC_LAGARCE_JUSTE_LA_FIN_DU_MONDE.epub (76 Ko)`
+- `Library/JEAN_MARC_LIGNY_ECOWARRIORS.epub (504 Ko)`
+- `Library/JEAN_MARC_LIGNY_JIHAD.epub (424 Ko)`
+- `Library/JEAN_YVES_JOUANNAIS_UNE_FORET.epub (112 Ko)`
+- `Library/JOHN_GWYNNE_FUREUR.epub (2105 Ko)`
+- `Library/JOHN_GWYNNE_LE_LIVRE_DES_TERRES_BANNIES_T1_MALICE.epub (1085 Ko)`
+- `Library/JOHN_GWYNNE_LE_LIVRE_DES_TERRES_BANNIES_T2_BRAVOURE.epub (829 Ko)`
+- `Library/JOHN_GWYNNE_LE_LIVRE_DES_TERRES_BANNIES_T3_RUINE.epub (1045 Ko)`
+- `Library/JOHN_SCALZI_L_EFFONDREMENT_DE_L_EMPIRE.epub (366 Ko)`
+- `Library/JOHN_SCALZI_LA_DERNIERE_EMPEROX.epub (1475 Ko)`
+- `Library/JOHN_SCALZI_LES_FLAMMES_DE_L_EMPIRE_L_INTERDEPENDANCE_T2.epub (1637 Ko)`
+- `Library/La.Faille.2023.Franck.Thilliez.epub (5293 Ko)`
+- `Library/LOUISE_CHENNEVIERE_FAIRE_LA_PEAU.epub (197 Ko)`
+- `Library/MARIE_NDIAYE_ROYAN.epub (88 Ko)`
+- `Library/MARION_BRUNET_NE_CHERCHE_PAS_LE_CHAOS.epub (239 Ko)`
+- `Library/MELOIS_CLEMENTINE_CHOSES_QUE_JE_CROYAIS_PERDUES.epub (456 Ko)`
+- `Library/MOUAWAD_WAJDI_INCENDIES.epub (191 Ko)`
+- `Library/NEWLANDS_TOM_ICI_MAINTENANT.epub (622 Ko)`
+- `Library/NINA_BOURAOUI_CHAMPIONNE.epub (458 Ko)`
+- `Library/NIVEN_LARRY_LES_INGENIEURS_DE_L_ANNEAU_MONDE.epub (446 Ko)`
+- `Library/OLIVIER_NOREK_DET_VICTOR_COSTE_T01_CODE_93.epub (455 Ko)`
+- `Library/OLIVIER_ROLIN_LA_GUERRE_ETERNELLE.epub (807 Ko)`
+- `Library/PATRICE_JEAN_STAY_FREE.epub (401 Ko)`
+- `Library/PHILIPPE_JAENADA_L_INCONNUE_DU_QUAI_DE_JAVEL.epub (517 Ko)`
+- `Library/PRUDHOMME_SYLVAIN_DE_L_AUTRE_COTE_DU_LAC.epub (622 Ko)`
+- `Library/QNTM_LA_DIVISION_ANTIMEMETIQUE_N_EXISTE_PAS.epub (328 Ko)`
+- `Library/RICHARD_POWERS_UN_JEU_SANS_FIN.epub (713 Ko)`
+- `Library/ROBERT_MCCAMMON_L_HEURE_DU_LOUP_VOLUME_DEUX.epub (1104 Ko)`
+- `Library/ROBERT_MCCAMMON_L_HEURE_DU_LOUP_VOLUME_UN.epub (1143 Ko)`
+- `Library/ROBIN_HOBB_ASSASSIN_ROYAL_13_ADIEUX_ET_RETROUVAILLES.epub (381 Ko)`
+- `Library/ROBIN_HOBB_L_ASSASSIN_ROYAL_001_L_APPRENTI_ASSASSIN.epub (605 Ko)`
+- `Library/ROBIN_HOBB_L_ASSASSIN_ROYAL_002_L_ASSASSIN_DU_ROI.epub (1050 Ko)`
+- `Library/ROBIN_HOBB_L_ASSASSIN_ROYAL_003_LA_NEF_DU_CREPUSCULE.epub (1134 Ko)`
+- `Library/ROBIN_HOBB_L_ASSASSIN_ROYAL_004_LE_POISON_DE_LA_VENGEANCE.epub (459 Ko)`
+- `Library/STEVEN_ERIKSON_LA_MAISON_DES_CHAINES.epub (1221 Ko)`
+- `Library/STEVEN_ERIKSON_LE_LIVRE_DES_MARTYRS_06_LES_OSSELEURS.epub (1120 Ko)`
+- `Library/STEVEN_ERIKSON_LE_LIVRE_DES_MARTYRS_T10_LE_DIEU_ESTROPIE.epub (1288 Ko)`
+- `Library/STEVEN_ERIKSON_LE_LIVRE_DES_MARTYRS_T7_LE_SOUFFLE_DU_MOISSONNEUR.epub (1178 Ko)`
+- `Library/STEVEN_ERIKSON_LE_LIVRE_DES_MARTYRS_T8_LA_RANCON_DES_MOLOSSES.epub (1304 Ko)`
+- `Library/STEVEN_ERIKSON_LE_LIVRE_DES_MARTYRS_T9_LA_POUSSIERE_DES_REVES.epub (1128 Ko)`
+- `Library/STEVEN_ERIKSON_LES_JARDINS_DE_LA_LUNE.epub (778 Ko)`
+- `Library/STEVEN_ERIKSON_LES_MAREES_DE_MINUIT.epub (1011 Ko)`
+- `Library/STEVEN_ERIKSON_LES_PORTES_DE_LA_MAISON_DES_MORTS_NOUVELLE_TRADUCTION.epub (1001 Ko)`
+- `Library/STEVEN_ERIKSON_LES_SOUVENIRS_DE_LA_GLACE.epub (1202 Ko)`
+- `Library/THELYSON_ORELIEN_C_ETAIT_CA_OU_MOURIR.epub (445 Ko)`
+- `Library/THIERRY_FREMAUX_SELECTION_OFFICIELLE.epub (604 Ko)`
+- `Library/TONI_MORRISON_L_IL_LE_PLUS_BLEU.epub (235 Ko)`
+- `Library/TR_XE9_VIDIC_MARC_HUITI_XE8_ME_SECTION.epub (550 Ko)`
+- `Library/UNKNOWN__0750A83791D14C71D790DBD54C108DFB.epub (407 Ko)`
+- `Library/UNKNOWN__6E0876F36BD8236C37638C49ABE94C96.epub (244 Ko)`
+- `Library/YANNICK_HAENEL_LA_SOLITUDE_DES_PROFESSEURS_EST_INFINIE.epub (588 Ko)`
+
+## Bilan
+
+- A + B : 16 groupes, 60 Mo récupérables sans risque.
+- C : 231 groupes, 329 Mo si on ne garde qu'un fichier par livre.
