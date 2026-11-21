@@ -20,6 +20,8 @@ export type BookSummary = {
   series: string | null;
   seriesIndex: number | null;
   hasCover: boolean;
+  /** When the book entered the catalog; lets the front mark recent arrivals. */
+  addedAt: string;
 };
 
 export type BookPage = {
@@ -49,12 +51,12 @@ type BookRow = {
   series: string | null;
   series_index: number | null;
   cover_file: string | null;
+  added_at: string;
 };
 
 type BookDetailsRow = BookRow & {
   description: string | null;
   file_size: number;
-  added_at: string;
   updated_at: string;
 };
 
@@ -85,6 +87,7 @@ function toSummary(row: BookRow): BookSummary {
     series: row.series,
     seriesIndex: row.series_index,
     hasCover: row.cover_file !== null,
+    addedAt: row.added_at,
   };
 }
 
@@ -160,7 +163,7 @@ export function createCatalogQueries(database: LibraryDatabase) {
         .get(parameters);
       const rows = database
         .prepare<Record<string, string | number>, BookRow>(
-          `SELECT books.id, books.title, books.language, books.series, books.series_index, books.cover_file, ${AUTHORS_JSON_COLUMN}
+          `SELECT books.id, books.title, books.language, books.series, books.series_index, books.cover_file, books.added_at, ${AUTHORS_JSON_COLUMN}
            ${fromClause} ${whereClause}
            ${filters.series && filters.sort !== "recent" ? SERIES_ORDER : orderByClause(filters.sort, fullTextQuery !== null)}
            LIMIT @limit OFFSET @offset`,

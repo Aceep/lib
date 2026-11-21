@@ -16,6 +16,7 @@ import { BookPage } from "./book/BookPage.js";
 import { CatalogPage } from "./catalog/CatalogPage.js";
 import { KyleSays } from "./shared/KyleSays.js";
 import { Logo } from "./shared/Logo.js";
+import { TabBar } from "./shared/TabBar.js";
 import { RequestsPage } from "./requests/RequestsPage.js";
 import { useDocumentTitle } from "./shared/use-document-title.js";
 import { SyncIndicator } from "./sync/SyncIndicator.js";
@@ -26,7 +27,7 @@ function NotFoundPage() {
   return (
     <main className="page">
       <div className="kyle-empty">
-        <KyleSays pose="mirrored">
+        <KyleSays pose="search">
           <strong>Rien sous cette pierre.</strong> Cette page n'existe pas.
         </KyleSays>
       </div>
@@ -149,11 +150,11 @@ function SignedInApp({ user, onLoggedOut }: { user: User; onLoggedOut: () => voi
           <NavLink to="/upload" className="nav-link">
             Ajouter
           </NavLink>
-          {isAdmin ? (
-            <NavLink to="/admin" className="nav-link">
           <NavLink to="/requests" className="nav-link">
             Demandes
           </NavLink>
+          {isAdmin ? (
+            <NavLink to="/admin" className="nav-link">
               Admin
               {pendingUploads.count > 0 ? (
                 <span className="count-badge" aria-label={`${pendingUploads.count} envois à valider`}>
@@ -168,15 +169,16 @@ function SignedInApp({ user, onLoggedOut }: { user: User; onLoggedOut: () => voi
           </NavLink>
         </nav>
       </header>
+      <TabBar user={user} pendingUploadCount={pendingUploads.count} />
       <Routes>
         <Route path="/" element={<CatalogPage libraryVersion={libraryVersion} />} />
         <Route path="/books/:bookId" element={<BookPage user={user} onLibraryChanged={handleLibraryChanged} />} />
         <Route path="/authors" element={<AuthorsPage libraryVersion={libraryVersion} />} />
         <Route path="/upload" element={<UploadPage user={user} onLibraryChanged={handleLibraryChanged} />} />
+        <Route path="/requests" element={<RequestsPage user={user} libraryVersion={libraryVersion} />} />
         <Route path="/account" element={<AccountPage user={user} onLoggedOut={onLoggedOut} />} />
         {isAdmin ? (
           <Route path="/admin" element={<AdminLayout pendingUploadCount={pendingUploads.count} />}>
-        <Route path="/requests" element={<RequestsPage user={user} libraryVersion={libraryVersion} />} />
             <Route index element={<DashboardPage libraryVersion={libraryVersion} />} />
             <Route path="activity" element={<ActivityPage />} />
             <Route

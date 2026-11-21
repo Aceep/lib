@@ -1,21 +1,33 @@
-import type { ReactNode } from "react";
-
-type Pose = "default" | "mirrored" | "sleepy";
-
-const POSE_CLASS: Record<Pose, string> = {
-  default: "",
-  mirrored: " is-mirrored",
-  sleepy: " is-sleepy",
-};
+import { type ReactNode, useState } from "react";
 
 /**
- * Kyle, the yellow dinosaur, speaking in the first person. Used where the other apps print grey text:
- * empty states, warnings, greetings. One drawing for now, flipped or tilted to suggest a mood.
+ * One drawing per mood. Each pose looks for its own sprite under /kyle/<pose>.png (or .gif when animated) and
+ * falls back to the base drawing, flipped or tilted, until that sprite exists.
  */
-export function KyleSays({ children, pose = "default", size = "medium", className = "" }: { children: ReactNode; pose?: Pose; size?: "small" | "medium" | "large"; className?: string }) {
+export type KylePose = "default" | "search" | "sleep" | "carry" | "duplicate" | "error";
+
+const FALLBACK_CLASS: Record<KylePose, string> = {
+  default: "",
+  search: " is-mirrored",
+  sleep: " is-sleepy",
+  carry: "",
+  duplicate: " is-tilted",
+  error: " is-mirrored",
+};
+
+export const BASE_SPRITE = "/Kyle.png";
+
+export function spriteFor(pose: KylePose): string {
+  return pose === "default" ? BASE_SPRITE : `/kyle/${pose}.png`;
+}
+
+/** Kyle, the yellow dinosaur, speaking in the first person where other apps print grey text. */
+export function KyleSays({ children, pose = "default", size = "medium", className = "" }: { children: ReactNode; pose?: KylePose; size?: "small" | "medium" | "large"; className?: string }) {
+  const [source, setSource] = useState(() => spriteFor(pose));
+  const usesFallback = source === BASE_SPRITE;
   return (
-    <div className={`kyle-says is-${size}${POSE_CLASS[pose]} ${className}`.trim()}>
-      <img className="kyle-says-figure" src="/Kyle.png" alt="" width="455" height="548" />
+    <div className={`kyle-says is-${size}${usesFallback ? FALLBACK_CLASS[pose] : ""} ${className}`.trim()}>
+      <img className="kyle-says-figure" src={source} alt="" width="455" height="548" onError={() => setSource(BASE_SPRITE)} />
       <p className="kyle-says-bubble">{children}</p>
     </div>
   );

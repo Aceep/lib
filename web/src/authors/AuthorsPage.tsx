@@ -53,7 +53,7 @@ export function AuthorsPage({ libraryVersion }: { libraryVersion: number }) {
       ) : null}
       {facets.data && groups.length === 0 ? (
         <div className="kyle-empty">
-          <KyleSays pose="mirrored">
+          <KyleSays pose="search">
             <strong>Rien sous cette pierre.</strong> Aucun auteur ne correspond.
           </KyleSays>
         </div>

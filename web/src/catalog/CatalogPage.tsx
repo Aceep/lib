@@ -5,7 +5,7 @@ import { countLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
 import { KyleSays } from "../shared/KyleSays.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
-import { BookCard, BookCardSkeleton } from "./BookCard.js";
+import { BookCard, BookCardSkeleton, isRecentArrival } from "./BookCard.js";
 import { BookShelf } from "./BookShelf.js";
 import { CatalogFilters } from "./CatalogFilters.js";
 import { type CatalogParams, PAGE_SIZE, readCatalogParams, updateCatalogParams, writeCatalogParams } from "./catalog-params.js";
@@ -20,6 +20,25 @@ async function fetchPagesUpTo(params: CatalogParams, signal: AbortSignal): Promi
     Array.from({ length: params.page }, (_, index) => fetchBooks({ ...params, page: index + 1, pageSize: PAGE_SIZE }, signal)),
   );
   return { items: pages.flatMap((page: BookPage) => page.items), total: pages[0]?.total ?? 0 };
+}
+
+/** Kyle's word of welcome: how many books arrived this week, out of the recent shelf (so "12+" past its size). */
+function HomeGreeting({ recent, total }: { recent: BookSummary[]; total: number }) {
+  const newCount = recent.filter((book) => isRecentArrival(book)).length;
+  const newLabel = newCount >= RECENT_SHELF_SIZE ? `${RECENT_SHELF_SIZE}+ nouveaux livres` : countLabel(newCount, "nouveau livre", "nouveaux livres");
+  return (
+    <KyleSays pose="default" className="home-greeting">
+      {newCount > 0 ? (
+        <>
+          J'ai rangé <strong>{newLabel}</strong> cette semaine. On lit quoi ce soir ?
+        </>
+      ) : (
+        <>
+          Rien de neuf cette semaine, mais <strong>{countLabel(total, "livre")}</strong> t'attendent. On lit quoi ce soir ?
+        </>
+      )}
+    </KyleSays>
+  );
 }
 
 function pageTitle(params: CatalogParams): string | null {
@@ -57,10 +76,13 @@ export function CatalogPage({ libraryVersion }: { libraryVersion: number }) {
     <main className="catalog">
       <CatalogFilters params={params} facets={facets.data} onChange={applyChange} />
 
+      {isHome && recent.data ? <HomeGreeting recent={recent.data.items} total={total} /> : null}
+
       {isHome ? (
         <BookShelf
           title="Ajoutés récemment"
           books={recent.data?.items ?? null}
+          showNewBadges
           action={
             <Link to="/?sort=recent" className="shelf-link">
               Voir tout →
@@ -93,11 +115,11 @@ export function CatalogPage({ libraryVersion }: { libraryVersion: number }) {
       {books.data && books.data.items.length === 0 ? (
         <div className="kyle-empty">
           {hasFilters ? (
-            <KyleSays pose="mirrored">
+            <KyleSays pose="search">
               <strong>Rien sous cette pierre.</strong> Aucun livre ne correspond à cette recherche.
             </KyleSays>
           ) : (
-            <KyleSays pose="sleepy">
+            <KyleSays pose="sleep">
               <strong>Je dors en attendant la synchro.</strong> Lance-la ou ajoute des livres, je me réveille.
             </KyleSays>
           )}

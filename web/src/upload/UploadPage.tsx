@@ -313,7 +313,7 @@ export function UploadPage({ user, onLibraryChanged }: { user: User; onLibraryCh
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
       >
-        <KyleSays>
+        <KyleSays pose="carry">
           <strong>Glisse tes EPUB ici,</strong> je m'occupe du rangement.
         </KyleSays>
         <span className="upload-drop-or">ou</span>

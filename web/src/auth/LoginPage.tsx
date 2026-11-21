@@ -59,7 +59,7 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: (user: User) => void }) 
         </label>
         {errorMessage ? (
           <div role="alert">
-            <KyleSays pose="mirrored" size="small">
+            <KyleSays pose="error" size="small">
               <strong>Je ne te reconnais pas.</strong> {errorMessage}
             </KyleSays>
           </div>

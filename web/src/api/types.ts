@@ -11,6 +11,8 @@ export type BookSummary = {
   /** Position in the series; null when the book has no series or no number. */
   seriesIndex: number | null;
   hasCover: boolean;
+  /** When the book entered the catalog; recent arrivals get a "nouveau" badge. */
+  addedAt: string;
 };
 
 export type BookPage = {
