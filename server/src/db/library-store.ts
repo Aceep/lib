@@ -13,6 +13,8 @@ export type IndexedFile = FileFingerprint & {
   contentHash: string | null;
   /** False for a book indexed before series were read from the files. */
   seriesChecked: boolean;
+  /** False for a book indexed before genres were derived from the files' subjects. */
+  genresChecked: boolean;
 };
 
 export type BookRecord = FileFingerprint & {
@@ -23,6 +25,7 @@ export type BookRecord = FileFingerprint & {
   description: string | null;
   series: string | null;
   seriesIndex: number | null;
+  genres: string[];
 };
 
 /** What an admin may correct on a book. */
@@ -68,6 +71,7 @@ type IndexedFileRow = {
   cover_file: string | null;
   content_hash: string | null;
   series_checked: number;
+  genres_checked: number;
 };
 
 type InvalidFileRow = {
@@ -94,8 +98,15 @@ export type LibraryStore = ReturnType<typeof createLibraryStore>;
 export function createLibraryStore(database: LibraryDatabase) {
   const statements = {
     listIndexedFiles: database.prepare<[], IndexedFileRow>(
-      "SELECT id, file_path, file_size, file_mtime_ms, cover_file, content_hash, series_checked FROM books",
+      "SELECT id, file_path, file_size, file_mtime_ms, cover_file, content_hash, series_checked, genres_checked FROM books",
     ),
+    upsertGenre: database.prepare<[string], { id: number }>(
+      "INSERT INTO genres (name) VALUES (?) ON CONFLICT (name) DO UPDATE SET name = name RETURNING id",
+    ),
+    deleteBookGenres: database.prepare<[number]>("DELETE FROM book_genres WHERE book_id = ?"),
+    insertBookGenre: database.prepare<[number, number]>("INSERT OR IGNORE INTO book_genres (book_id, genre_id) VALUES (?, ?)"),
+    setGenresChecked: database.prepare<[number]>("UPDATE books SET genres_checked = 1 WHERE id = ?"),
+    deleteOrphanGenres: database.prepare<[]>("DELETE FROM genres WHERE id NOT IN (SELECT genre_id FROM book_genres)"),
     setContentHash: database.prepare<[string, number]>("UPDATE books SET content_hash = ? WHERE id = ?"),
     findByContentHash: database.prepare<[string], DuplicateRow>(
       "SELECT id, title, file_path FROM books WHERE content_hash = ? ORDER BY id",
@@ -126,8 +137,8 @@ export function createLibraryStore(database: LibraryDatabase) {
       },
       { id: number }
     >(
-      `INSERT INTO books (file_path, file_size, file_mtime_ms, content_hash, title, sort_title, language, description, series, series_index, series_checked, added_at, updated_at)
-       VALUES (@filePath, @fileSize, @fileMtimeMs, @contentHash, @title, @sortTitle, @language, @description, @series, @seriesIndex, 1, @now, @now)
+      `INSERT INTO books (file_path, file_size, file_mtime_ms, content_hash, title, sort_title, language, description, series, series_index, series_checked, genres_checked, added_at, updated_at)
+       VALUES (@filePath, @fileSize, @fileMtimeMs, @contentHash, @title, @sortTitle, @language, @description, @series, @seriesIndex, 1, 1, @now, @now)
        RETURNING id`,
     ),
     updateBook: database.prepare<{
@@ -145,7 +156,7 @@ export function createLibraryStore(database: LibraryDatabase) {
     }>(
       `UPDATE books SET file_size = @fileSize, file_mtime_ms = @fileMtimeMs, content_hash = @contentHash, title = @title,
          sort_title = @sortTitle, language = @language, description = @description, series = @series,
-         series_index = @seriesIndex, series_checked = 1, updated_at = @now
+         series_index = @seriesIndex, series_checked = 1, genres_checked = 1, updated_at = @now
        WHERE id = @bookId`,
     ),
     setCoverFile: database.prepare<[string | null, number]>("UPDATE books SET cover_file = ? WHERE id = ?"),
@@ -234,6 +245,16 @@ export function createLibraryStore(database: LibraryDatabase) {
     };
   }
 
+  function replaceGenres(bookId: number, genres: string[]): void {
+    statements.deleteBookGenres.run(bookId);
+    for (const name of genres) {
+      const genre = statements.upsertGenre.get(name);
+      if (genre) {
+        statements.insertBookGenre.run(bookId, genre.id);
+      }
+    }
+  }
+
   function replaceAuthorsAndSearchEntry(bookId: number, record: Pick<BookRecord, "title" | "authors" | "description" | "series">): void {
     statements.deleteBookAuthors.run(bookId);
     record.authors.forEach((name, position) => {
@@ -258,8 +279,15 @@ export function createLibraryStore(database: LibraryDatabase) {
         coverFile: row.cover_file,
         contentHash: row.content_hash,
         seriesChecked: row.series_checked === 1,
+        genresChecked: row.genres_checked === 1,
       }));
     },
+
+    /** Fills in the genres of a book indexed before subjects were read, leaving everything else as it is. */
+    backfillGenres: database.transaction((bookId: number, genres: string[]): void => {
+      replaceGenres(bookId, genres);
+      statements.setGenresChecked.run(bookId);
+    }),
 
     /** Fills in the series of a book indexed before series were read, leaving everything else as it is. */
     backfillSeries: database.transaction((bookId: number, series: string | null, seriesIndex: number | null): void => {
@@ -329,6 +357,7 @@ export function createLibraryStore(database: LibraryDatabase) {
         statements.updateBook.run({ ...fields, bookId });
       }
       replaceAuthorsAndSearchEntry(bookId, record);
+      replaceGenres(bookId, record.genres);
       statements.deleteInvalidFile.run(record.filePath);
       return bookId;
     }),
@@ -417,6 +446,10 @@ export function createLibraryStore(database: LibraryDatabase) {
 
     deleteOrphanAuthors(): void {
       statements.deleteOrphanAuthors.run();
+    },
+
+    deleteOrphanGenres(): void {
+      statements.deleteOrphanGenres.run();
     },
   };
 }

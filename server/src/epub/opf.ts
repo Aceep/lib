@@ -11,11 +11,13 @@ export type OpfMetadata = {
   seriesIndex: number | null;
   coverPath: string | null;
   coverMediaType: string | null;
+  /** dc:subject values as written, deduplicated; genres are derived from them later. */
+  subjects: string[];
 };
 
 type XmlNode = Record<string, unknown>;
 
-const ALWAYS_ARRAY_TAGS = new Set(["rootfile", "title", "creator", "language", "description", "meta", "item"]);
+const ALWAYS_ARRAY_TAGS = new Set(["rootfile", "title", "creator", "language", "description", "subject", "meta", "item"]);
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -214,6 +216,18 @@ function findSeries(metadata: XmlNode | null): { series: string | null; seriesIn
   return { series: decodeEntities(collectionName), seriesIndex: toIndex(textContent(position)) };
 }
 
+function uniqueSubjects(nodes: unknown[]): string[] {
+  const subjects: string[] = [];
+  for (const node of nodes) {
+    const text = textContent(node);
+    const decoded = text ? decodeEntities(text) : null;
+    if (decoded && !subjects.includes(decoded)) {
+      subjects.push(decoded);
+    }
+  }
+  return subjects;
+}
+
 export function parseContainer(containerXml: string): string | null {
   const document: unknown = xmlParser.parse(containerXml);
   const rootfiles = childNodes(childNode(childNode(document, "container"), "rootfiles"), "rootfile");
@@ -241,5 +255,6 @@ export function parseOpf(opfXml: string, opfPath: string): OpfMetadata {
     ...findSeries(metadata),
     coverPath: coverHref ? resolveHref(opfPath, coverHref) : null,
     coverMediaType: attribute(coverItem, "media-type"),
+    subjects: uniqueSubjects(childNodes(metadata, "subject")),
   };
 }

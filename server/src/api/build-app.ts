@@ -51,6 +51,7 @@ type BookListQuerystring = {
   author?: string;
   language?: string;
   series?: string;
+  genre?: string;
   sort: BookSort;
   page: number;
   pageSize: number;
@@ -216,6 +217,7 @@ const bookListQuerystringSchema = {
     author: { type: "string", maxLength: 300 },
     language: { type: "string", maxLength: 20 },
     series: { type: "string", maxLength: 300 },
+    genre: { type: "string", maxLength: 60 },
     sort: { type: "string", enum: ["relevance", "title", "recent"], default: "relevance" },
     page: { type: "integer", minimum: 1, default: 1 },
     pageSize: { type: "integer", minimum: 1, maximum: 100, default: 24 },
@@ -511,12 +513,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
     "/api/books",
     { schema: { querystring: bookListQuerystringSchema } },
     async (request) => {
-      const { q, author, language, series, sort, page, pageSize } = request.query;
+      const { q, author, language, series, genre, sort, page, pageSize } = request.query;
       return catalog.listBooks({
         query: q?.trim() || null,
         author: author?.trim() || null,
         language: language?.trim().toLowerCase() || null,
         series: series?.trim() || null,
+        genre: genre?.trim() || null,
         sort,
         page,
         pageSize,

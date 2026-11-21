@@ -97,6 +97,8 @@ export type BookListParams = {
   language: string;
   /** Exact series name; the volumes then come in reading order. */
   series?: string;
+  /** Exact genre name, as listed in the facets. */
+  genre?: string;
   sort: BookSort;
   page: number;
   pageSize: number;
@@ -108,6 +110,7 @@ export function fetchBooks(params: BookListParams, signal?: AbortSignal): Promis
   if (params.author) search.set("author", params.author);
   if (params.language) search.set("language", params.language);
   if (params.series) search.set("series", params.series);
+  if (params.genre) search.set("genre", params.genre);
   return requestJson(`/api/books?${search}`, { signal: signal ?? null });
 }
 

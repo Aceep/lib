@@ -208,6 +208,21 @@ const MIGRATIONS: string[] = [
   UPDATE books SET language = 'de' WHERE language IN ('deu', 'ger');
   UPDATE books SET language = NULL WHERE language IN ('und', 'zxx', 'mul', 'unknown', '');
   `,
+  `
+  -- Shelves derived from the EPUBs' dc:subject values (library/genres.ts), a short fixed list.
+  CREATE TABLE genres (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+  );
+  CREATE TABLE book_genres (
+    book_id INTEGER NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+    genre_id INTEGER NOT NULL REFERENCES genres (id) ON DELETE CASCADE,
+    PRIMARY KEY (book_id, genre_id)
+  );
+  CREATE INDEX book_genres_genre ON book_genres (genre_id);
+  -- 0 for books indexed before subjects were read: the indexer fills genres in without touching anything else.
+  ALTER TABLE books ADD COLUMN genres_checked INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 function migrate(database: LibraryDatabase): void {

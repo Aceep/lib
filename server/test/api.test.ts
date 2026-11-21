@@ -19,11 +19,11 @@ let app: FastifyInstance;
 
 const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-type BookFixture = { file: string; title: string; authors: string[]; language?: string; description?: string; withCover?: boolean };
+type BookFixture = { file: string; title: string; authors: string[]; language?: string; description?: string; subjects?: string[]; withCover?: boolean };
 
 const LIBRARY: BookFixture[] = [
-  { file: "dune.epub", title: "Dune", authors: ["Frank Herbert"], language: "en", description: "Desert planet Arrakis." },
-  { file: "Herbert/Dune Messiah.epub", title: "Dune Messiah", authors: ["Frank Herbert"], language: "en" },
+  { file: "dune.epub", title: "Dune", authors: ["Frank Herbert"], language: "en", description: "Desert planet Arrakis.", subjects: ["FICTION / Science Fiction / General", "Classics"] },
+  { file: "Herbert/Dune Messiah.epub", title: "Dune Messiah", authors: ["Frank Herbert"], language: "en", subjects: ["SF"] },
   { file: "evenement.epub", title: "L'Événement", authors: ["Annie Ernaux"], language: "fr", withCover: true },
   { file: "omens.epub", title: "Good Omens", authors: ["Terry Pratchett", "Neil Gaiman"], language: "en-GB" },
   { file: "Été indien.epub", title: "Les Années", authors: ["Annie Ernaux"], language: "fr", description: "Une autobiographie impersonnelle de Dune à nos jours." },
@@ -37,6 +37,7 @@ async function writeBook(book: BookFixture, modifiedAt: Date) {
     ...book.authors.map((author) => `<dc:creator>${author}</dc:creator>`),
     book.language ? `<dc:language>${book.language}</dc:language>` : "",
     book.description ? `<dc:description>${book.description}</dc:description>` : "",
+    ...(book.subjects ?? []).map((subject) => `<dc:subject>${subject}</dc:subject>`),
   ].join("");
   const manifest = book.withCover ? `<item id="c" href="cover.png" media-type="image/png" properties="cover-image"/>` : "";
   await writeEpub(filePath, [
@@ -136,6 +137,23 @@ describe("GET /api/books", () => {
     ]);
   });
 
+  it("filters on a genre derived from the subjects", async () => {
+    expect(await listTitles("genre=Science-fiction&sort=title")).toEqual(["Dune", "Dune Messiah"]);
+    expect(await listTitles("genre=Classiques")).toEqual(["Dune"]);
+    expect(await listTitles("genre=Romance")).toEqual([]);
+  });
+
+  it("lists the genres of a book and counts them in the facets", async () => {
+    const book = await app.inject({ method: "GET", url: `/api/books/${bookIdByTitle("Dune")}` });
+    expect(book.json<{ genres: string[] }>().genres).toEqual(["Classiques", "Science-fiction"]);
+
+    const facets = await app.inject({ method: "GET", url: "/api/facets" });
+    expect(facets.json<{ genres: unknown }>().genres).toEqual([
+      { name: "Science-fiction", bookCount: 2 },
+      { name: "Classiques", bookCount: 1 },
+    ]);
+  });
+
   it("matches word prefixes while ignoring accents and case", async () => {
     expect(await listTitles("q=EVEN")).toEqual(["L'Événement"]);
   });
@@ -215,6 +233,10 @@ describe("GET /api/facets", () => {
       languages: [
         { code: "en", bookCount: 3 },
         { code: "fr", bookCount: 2 },
+      ],
+      genres: [
+        { name: "Science-fiction", bookCount: 2 },
+        { name: "Classiques", bookCount: 1 },
       ],
     });
   });

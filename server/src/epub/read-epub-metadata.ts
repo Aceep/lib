@@ -1,4 +1,5 @@
 import path from "node:path";
+import { normalizeGenres } from "../library/genres.js";
 import { parseContainer, parseOpf } from "./opf.js";
 import { openZipArchive } from "./zip.js";
 
@@ -14,6 +15,8 @@ export type EpubMetadata = {
   description: string | null;
   series: string | null;
   seriesIndex: number | null;
+  /** Shelves derived from dc:subject (see library/genres.ts); empty when the subjects say nothing usable. */
+  genres: string[];
   cover: EpubCover | null;
 };
 
@@ -64,6 +67,7 @@ export async function readEpubMetadata(filePath: string): Promise<EpubMetadata> 
       description: opf.description,
       series: opf.series,
       seriesIndex: opf.seriesIndex,
+      genres: normalizeGenres(opf.subjects),
       cover: coverData && opf.coverMediaType ? { data: coverData, mediaType: opf.coverMediaType } : null,
     };
   } finally {

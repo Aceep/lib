@@ -7,6 +7,8 @@ export type BookListFilters = {
   author: string | null;
   language: string | null;
   series: string | null;
+  /** Exact genre name, one of library/genres.ts. */
+  genre: string | null;
   sort: BookSort;
   page: number;
   pageSize: number;
@@ -32,6 +34,7 @@ export type BookPage = {
 };
 
 export type BookDetails = BookSummary & {
+  genres: string[];
   description: string | null;
   fileSize: number;
   addedAt: string;
@@ -41,6 +44,8 @@ export type BookDetails = BookSummary & {
 export type CatalogFacets = {
   authors: { name: string; bookCount: number }[];
   languages: { code: string; bookCount: number }[];
+  /** Most populated first. */
+  genres: { name: string; bookCount: number }[];
 };
 
 type BookRow = {
@@ -128,6 +133,14 @@ export function createCatalogQueries(database: LibraryDatabase) {
     `SELECT language, COUNT(*) AS book_count FROM books
      WHERE language IS NOT NULL GROUP BY language ORDER BY book_count DESC, language`,
   );
+  const genreFacetStatement = database.prepare<[], { name: string; book_count: number }>(
+    `SELECT genres.name, COUNT(*) AS book_count
+     FROM genres JOIN book_genres ON book_genres.genre_id = genres.id
+     GROUP BY genres.id ORDER BY book_count DESC, genres.name`,
+  );
+  const bookGenresStatement = database.prepare<[number], { name: string }>(
+    "SELECT genres.name FROM book_genres JOIN genres ON genres.id = book_genres.genre_id WHERE book_genres.book_id = ? ORDER BY genres.name",
+  );
 
   return {
     listBooks(filters: BookListFilters): BookPage {
@@ -153,6 +166,12 @@ export function createCatalogQueries(database: LibraryDatabase) {
       if (filters.series) {
         conditions.push("books.series = @series COLLATE NOCASE");
         parameters.series = filters.series;
+      }
+      if (filters.genre) {
+        conditions.push(`EXISTS (
+          SELECT 1 FROM book_genres JOIN genres ON genres.id = book_genres.genre_id
+          WHERE book_genres.book_id = books.id AND genres.name = @genre)`);
+        parameters.genre = filters.genre;
       }
 
       const fromClause = fullTextQuery ? "FROM books JOIN books_fts ON books_fts.rowid = books.id" : "FROM books";
@@ -180,6 +199,7 @@ export function createCatalogQueries(database: LibraryDatabase) {
       }
       return {
         ...toSummary(row),
+        genres: bookGenresStatement.all(row.id).map((genre) => genre.name),
         description: row.description,
         fileSize: row.file_size,
         addedAt: row.added_at,
@@ -199,6 +219,7 @@ export function createCatalogQueries(database: LibraryDatabase) {
       return {
         authors: authorFacetStatement.all().map((row) => ({ name: row.name, bookCount: row.book_count })),
         languages: languageFacetStatement.all().map((row) => ({ code: row.language, bookCount: row.book_count })),
+        genres: genreFacetStatement.all().map((row) => ({ name: row.name, bookCount: row.book_count })),
       };
     },
   };

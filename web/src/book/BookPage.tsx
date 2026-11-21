@@ -194,6 +194,17 @@ function BookDetailsView({ book }: { book: BookDetails }) {
                 </span>
               ))}
         </p>
+        {book.genres.length > 0 ? (
+          <ul className="genre-chips" aria-label="Genres">
+            {book.genres.map((genre) => (
+              <li key={genre}>
+                <Link to={`/?${new URLSearchParams({ genre })}`} className="chip">
+                  {genre}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <dl className="book-details-facts">
           {book.series ? (
             <>

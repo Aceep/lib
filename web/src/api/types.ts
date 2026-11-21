@@ -23,6 +23,8 @@ export type BookPage = {
 };
 
 export type BookDetails = BookSummary & {
+  /** Shelves derived from the file's subjects; empty when they said nothing usable. */
+  genres: string[];
   description: string | null;
   fileSize: number;
   addedAt: string;
@@ -32,6 +34,8 @@ export type BookDetails = BookSummary & {
 export type CatalogFacets = {
   authors: { name: string; bookCount: number }[];
   languages: { code: string; bookCount: number }[];
+  /** Most populated first. */
+  genres: { name: string; bookCount: number }[];
 };
 
 export type SyncRun = {

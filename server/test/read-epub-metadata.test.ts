@@ -78,6 +78,16 @@ describe("readEpubMetadata", () => {
     expect(metadata).toMatchObject({ title: "Le roman du terrorisme & autres", authors: ["Trévidic, Marc", "Marc Trévidic"] });
   });
 
+  it("turns the subjects into shelves", async () => {
+    const filePath = await epubWithOpf(
+      "book.epub",
+      `<dc:title>Dune</dc:title><dc:subject>FICTION / Science Fiction / General</dc:subject><dc:subject>Roman</dc:subject><dc:subject>lu</dc:subject>`,
+    );
+
+    expect((await readEpubMetadata(filePath)).genres).toEqual(["Science-fiction"]);
+    expect((await readEpubMetadata(await epubWithOpf("plain.epub", `<dc:title>Sans sujet</dc:title>`))).genres).toEqual([]);
+  });
+
   it("keeps every author in order and drops duplicates", async () => {
     const filePath = await epubWithOpf(
       "book.epub",

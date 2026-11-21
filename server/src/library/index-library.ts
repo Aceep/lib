@@ -121,11 +121,16 @@ export async function indexLibrary({ store, booksDirectory, coversDirectory }: I
         // Book indexed before hashes existed: fill it in without re-parsing.
         store.setContentHash(indexed.bookId, await hashFile(path.join(booksDirectory, file.filePath)));
       }
-      if (!indexed.seriesChecked) {
-        // Book indexed before series were read: fetch just that, keeping titles and authors corrected since.
+      if (!indexed.seriesChecked || !indexed.genresChecked) {
+        // Book indexed before series or genres were read: fetch just those, keeping titles and authors corrected since.
         try {
-          const { series, seriesIndex } = await readEpubMetadata(path.join(booksDirectory, file.filePath));
-          store.backfillSeries(indexed.bookId, series, seriesIndex);
+          const { series, seriesIndex, genres } = await readEpubMetadata(path.join(booksDirectory, file.filePath));
+          if (!indexed.seriesChecked) {
+            store.backfillSeries(indexed.bookId, series, seriesIndex);
+          }
+          if (!indexed.genresChecked) {
+            store.backfillGenres(indexed.bookId, genres);
+          }
         } catch {
           // It parsed once, so this is a passing I/O problem: the next run tries again.
         }
@@ -169,6 +174,7 @@ export async function indexLibrary({ store, booksDirectory, coversDirectory }: I
     store.forgetInvalid(vanished.filePath);
   }
   store.deleteOrphanAuthors();
+  store.deleteOrphanGenres();
 
   return report;
 }

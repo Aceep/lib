@@ -41,8 +41,32 @@ function HomeGreeting({ recent, total }: { recent: BookSummary[]; total: number 
   );
 }
 
+// Shelves on the home page: the most populated genres, as long as a shelf has enough books to scroll.
+const GENRE_SHELVES = 4;
+const GENRE_SHELF_MIN_BOOKS = 6;
+const GENRE_SHELF_SIZE = 12;
+
+function GenreShelf({ genre, libraryVersion }: { genre: string; libraryVersion: number }) {
+  const books = useAsync(
+    (signal) => fetchBooks({ query: "", author: "", language: "", genre, sort: "recent", page: 1, pageSize: GENRE_SHELF_SIZE }, signal),
+    [genre, libraryVersion],
+  );
+  return (
+    <BookShelf
+      title={genre}
+      books={books.data?.items ?? null}
+      action={
+        <Link to={`/?${new URLSearchParams({ genre })}`} className="shelf-link">
+          {books.data ? `${countLabel(books.data.total, "livre")} →` : "Voir tout →"}
+        </Link>
+      }
+    />
+  );
+}
+
 function pageTitle(params: CatalogParams): string | null {
   if (params.query) return `« ${params.query} »`;
+  if (params.genre) return params.genre;
   if (params.series) return params.series;
   if (params.author) return params.author;
   return null;
@@ -51,11 +75,14 @@ function pageTitle(params: CatalogParams): string | null {
 export function CatalogPage({ libraryVersion }: { libraryVersion: number }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const params = readCatalogParams(searchParams);
-  const hasFilters = Boolean(params.query || params.author || params.language || params.series);
+  const hasFilters = Boolean(params.query || params.author || params.language || params.series || params.genre);
   const isHome = !hasFilters && params.sort === "relevance";
   useDocumentTitle(pageTitle(params));
 
-  const books = useAsync((signal) => fetchPagesUpTo(params, signal), [params.query, params.author, params.language, params.series, params.sort, params.page, libraryVersion]);
+  const books = useAsync(
+    (signal) => fetchPagesUpTo(params, signal),
+    [params.query, params.author, params.language, params.series, params.genre, params.sort, params.page, libraryVersion],
+  );
   const facets = useAsync((signal) => fetchFacets(signal), [libraryVersion]);
   const recent = useAsync(
     (signal) => (isHome ? fetchBooks({ ...params, sort: "recent", page: 1, pageSize: RECENT_SHELF_SIZE }, signal) : Promise.resolve(null)),
@@ -90,6 +117,13 @@ export function CatalogPage({ libraryVersion }: { libraryVersion: number }) {
           }
         />
       ) : null}
+
+      {isHome
+        ? (facets.data?.genres ?? [])
+            .filter((genre) => genre.bookCount >= GENRE_SHELF_MIN_BOOKS)
+            .slice(0, GENRE_SHELVES)
+            .map((genre) => <GenreShelf key={genre.name} genre={genre.name} libraryVersion={libraryVersion} />)
+        : null}
 
       <div className="catalog-summary" aria-live="polite">
         <h2 className="catalog-heading">

@@ -105,7 +105,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
 export function CatalogFilters({ params, facets, onChange }: CatalogFiltersProps) {
   // Without a query there is nothing to rank, and the server falls back to title order.
   const displayedSort: BookSort = params.sort === "relevance" && !params.query ? "title" : params.sort;
-  const activeCount = Number(Boolean(params.author)) + Number(Boolean(params.language)) + Number(Boolean(params.series));
+  const activeCount = Number(Boolean(params.author)) + Number(Boolean(params.language)) + Number(Boolean(params.series)) + Number(Boolean(params.genre));
   // On a phone the filter row is folded behind a button; on wider screens CSS always shows it.
   const [isOpen, setIsOpen] = useState(false);
 
@@ -119,6 +119,17 @@ export function CatalogFilters({ params, facets, onChange }: CatalogFiltersProps
       </div>
       <div className="filter-row">
         <AuthorInput author={params.author} facets={facets} onSelect={(author) => onChange({ author })} />
+        <label className="filter">
+          <span>Genre</span>
+          <select value={params.genre} onChange={(event) => onChange({ genre: event.target.value })}>
+            <option value="">Tous</option>
+            {facets?.genres.map((genre) => (
+              <option key={genre.name} value={genre.name}>
+                {`${genre.name} (${genre.bookCount})`}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="filter">
           <span>Langue</span>
           <select value={params.language} onChange={(event) => onChange({ language: event.target.value })}>
@@ -143,6 +154,7 @@ export function CatalogFilters({ params, facets, onChange }: CatalogFiltersProps
         <div className="chips" aria-label="Filtres actifs">
           {params.series ? <FilterChip label={`Série : ${params.series}`} onRemove={() => onChange({ series: "" })} /> : null}
           {params.author ? <FilterChip label={params.author} onRemove={() => onChange({ author: "" })} /> : null}
+          {params.genre ? <FilterChip label={params.genre} onRemove={() => onChange({ genre: "" })} /> : null}
           {params.language ? <FilterChip label={languageLabel(params.language)} onRemove={() => onChange({ language: "" })} /> : null}
         </div>
       ) : null}
