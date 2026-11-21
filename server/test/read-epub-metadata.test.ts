@@ -35,6 +35,17 @@ describe("readEpubMetadata", () => {
     expect(metadata).toMatchObject({ title: "Le Petit Prince", authors: ["Antoine de Saint-Exupéry"], language: "fr" });
   });
 
+  it("decodes entities that were escaped twice in title and authors", async () => {
+    const filePath = await epubWithOpf(
+      "book.epub",
+      `<dc:title>Le roman du terrorisme &amp;amp; autres</dc:title><dc:creator>Tr&amp;#xE9;vidic, Marc</dc:creator><dc:creator>Marc Tr&amp;#233;vidic</dc:creator>`,
+    );
+
+    const metadata = await readEpubMetadata(filePath);
+
+    expect(metadata).toMatchObject({ title: "Le roman du terrorisme & autres", authors: ["Trévidic, Marc", "Marc Trévidic"] });
+  });
+
   it("keeps every author in order and drops duplicates", async () => {
     const filePath = await epubWithOpf(
       "book.epub",

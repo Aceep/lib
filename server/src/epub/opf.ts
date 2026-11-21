@@ -85,20 +85,22 @@ const HTML_ENTITIES: Record<string, string> = {
   nbsp: " ",
 };
 
+// Some tools double-escape metadata ("Tr&amp;#xE9;vidic"), which the XML parser rightly leaves as "Tr&#xE9;vidic".
+function decodeEntities(text: string): string {
+  return text.replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (entity, code: string) => {
+    if (code.startsWith("#x") || code.startsWith("#X")) {
+      return String.fromCodePoint(Number.parseInt(code.slice(2), 16));
+    }
+    if (code.startsWith("#")) {
+      return String.fromCodePoint(Number.parseInt(code.slice(1), 10));
+    }
+    return HTML_ENTITIES[code.toLowerCase()] ?? entity;
+  });
+}
+
 // Descriptions frequently embed escaped HTML; the catalog only displays plain text.
 function toPlainText(html: string): string {
-  return html
-    .replace(/<\s*(br|\/p|\/div|\/li)\b[^>]*>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (entity, code: string) => {
-      if (code.startsWith("#x") || code.startsWith("#X")) {
-        return String.fromCodePoint(Number.parseInt(code.slice(2), 16));
-      }
-      if (code.startsWith("#")) {
-        return String.fromCodePoint(Number.parseInt(code.slice(1), 10));
-      }
-      return HTML_ENTITIES[code.toLowerCase()] ?? entity;
-    })
+  return decodeEntities(html.replace(/<\s*(br|\/p|\/div|\/li)\b[^>]*>/gi, "\n").replace(/<[^>]+>/g, ""))
     .replace(/[ \t\r\f\v]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
@@ -123,8 +125,9 @@ function uniqueAuthors(creators: unknown[]): string[] {
       continue;
     }
     const name = textContent(creator);
-    if (name && !authors.includes(name)) {
-      authors.push(name);
+    const decoded = name ? decodeEntities(name) : null;
+    if (decoded && !authors.includes(decoded)) {
+      authors.push(decoded);
     }
   }
   return authors;
@@ -178,8 +181,9 @@ export function parseOpf(opfXml: string, opfPath: string): OpfMetadata {
   const coverItem = findCoverItem(metadata, manifestItems);
   const coverHref = attribute(coverItem, "href");
 
+  const title = firstText(childNodes(metadata, "title"));
   return {
-    title: firstText(childNodes(metadata, "title")),
+    title: title ? decodeEntities(title) : null,
     authors: uniqueAuthors(childNodes(metadata, "creator")),
     language: normalizeLanguage(firstText(childNodes(metadata, "language"))),
     description: description ? toPlainText(description) || null : null,
