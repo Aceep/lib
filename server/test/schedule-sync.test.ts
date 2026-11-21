@@ -5,6 +5,7 @@ import type { SyncService } from "../src/sync/sync-service.js";
 const idleSync: SyncService = {
   start: () => null,
   getStatus: () => ({ current: null, lastFinished: null }),
+  listRecentRuns: () => [],
   whenIdle: () => Promise.resolve(),
 };
 

@@ -1,0 +1,7 @@
+# HTTPS in front of the app. With a real domain name pointing at this server (and ports 80/443 reachable),
+# Caddy obtains and renews a Let's Encrypt certificate on its own. With the default "localhost" it serves a
+# self-signed certificate, which browsers flag: fine for a trial, not for daily use.
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+	reverse_proxy kyle-lib:3000
+}

@@ -122,8 +122,42 @@ Catalogue web d'EPUB pour 2 personnes, hébergé en local sur mon serveur.
 - Donnée à nettoyer un jour : la table `authors` est unique sans casse mais avec accents (« Agnès Martin-Lugand » et
   « Agnes Martin-lugand » coexistent) ; fusionner sur `toSortKey` serait une migration.
 
+## Panneau admin — lot 1, étape 1 : comptes et sessions (fait le 2026-11-21)
+
+- Décisions : login obligatoire pour tout le monde, appli exposée sur Internet, HTTPS par Caddy (`Caddyfile`, service
+  `caddy` du compose ; le port 3000 n'est plus publié sur l'hôte).
+- Migration 4 : `users` (hash scrypt, rôle `admin`/`member`) et `sessions` (SHA-256 du jeton, 30 jours d'inactivité).
+- `server/src/auth/` (service, mots de passe) et `server/src/api/auth-routes.ts` : un hook exige une session sur tout
+  `/api/*` (sauf login/logout) et le rôle admin sur `/api/admin/*` ; refus des écritures dont l'`Origin` n'est pas le
+  nôtre ; 5 échecs de connexion par IP ou par compte = 15 min de blocage (en mémoire).
+- Routes : `/api/auth/login|logout|me|password`, `/api/admin/users` (liste, création, réinitialisation, suppression).
+- Front : page de connexion, `/account` (mot de passe, déconnexion), `/admin/users`.
+- `buildApp` sans `auth` laisse tout ouvert : réservé aux tests du catalogue, `main.ts` le passe toujours.
+
+## Panneau admin — lot 1, étapes 2 à 4 (fait le 2026-11-21)
+
+- **Journal d'activité** (migration 5, `server/src/activity/activity-log.ts`) : compte, IP, user-agent, action, livre,
+  détails JSON (le titre y est copié pour survivre à la suppression du livre). Actions : connexions (réussies, échouées
+  avec le nom tenté), déconnexion, mots de passe, comptes, téléchargement, uploads (direct, soumis, validé, refusé,
+  annulé), synchro lancée. `GET /api/admin/activity` (filtres `action`, `username`, pagination). Purge au démarrage puis
+  chaque jour au-delà de `ACTIVITY_RETENTION_DAYS` (365 par défaut).
+- **Validation des uploads** (migration 6, table `upload_submissions`) : un admin confirme directement
+  (`POST /api/uploads/:id/confirm`, 403 pour un membre) ; un membre soumet (`POST /api/uploads/:id/submit`) et le fichier
+  attend dans `DATA_DIR/uploads/`. L'admin corrige, valide (même route `confirm`) ou refuse avec motif
+  (`POST /api/admin/uploads/:id/reject`). Les envois soumis survivent au redémarrage, pas les brouillons (1 h).
+  Un membre ne voit que ses envois (`GET /api/uploads/mine`) et ne peut pas en tenir plus de 10 à la fois.
+- **Santé** (`server/src/admin/library-health.ts`, `GET /api/admin/health`) : fichiers illisibles, fiches sans
+  couverture/langue/résumé, auteurs en double probable (`authorIdentityKey` : ordre des mots, casse, accents, initiales),
+  20 dernières synchros. Sur la vraie base : 702 livres, 1 fichier illisible, 170 fiches incomplètes, 55 groupes d'auteurs.
+- Front : `/admin` (onglets Activité, Envois à valider, Santé, Utilisateurs), pastille du nombre d'envois en attente,
+  « Mes envois » sur la page d'ajout des membres.
+- Non fait : aucune vérification visuelle dans un navigateur, `docker compose up` avec Caddy jamais lancé.
+- Suite du plan, dans l'ordre : séries (`calibre:series`, `belongs-to-collection`) + édition des fiches + fusion
+  d'auteurs (les 55 groupes ci-dessus) + suppression vers `mega:_corbeille` ; livres manquants (Open Library + Wikidata,
+  auteurs suivis) ; demandes de livres ; tableau de bord.
+
 ## Plus tard
 
-- Phase 2 : demandes de livres (formulaire, liste, statut).
+- Phase 2 : demandes de livres (formulaire, liste, statut) — intégrée au plan du panneau admin ci-dessus.
 - Thème clair à vérifier visuellement (les captures headless sortent en sombre).
 - Réécrire l'OPF dans l'EPUB quand titre/auteurs sont corrigés à l'upload (aujourd'hui la correction ne vit que dans la base).

@@ -69,9 +69,81 @@ export type UploadPreview = {
   language: string | null;
   targetPath: string;
   duplicates: UploadDuplicate[];
+  /** draft: only its uploader has seen it; submitted: waiting for an admin. */
+  status: "draft" | "submitted";
+  uploadedBy: string;
+  submittedAt: string | null;
+};
+
+/** What became of an upload a member sent for review. */
+export type UploadSubmission = {
+  id: string;
+  originalName: string;
+  title: string;
+  authors: string[];
+  status: "pending" | "approved" | "rejected";
+  submittedAt: string;
+  decidedAt: string | null;
+  reason: string | null;
+  bookId: number | null;
 };
 
 export type UploadResult = {
   bookId: number;
   filePath: string;
+};
+
+export type UserRole = "admin" | "member";
+
+export type User = {
+  id: number;
+  username: string;
+  role: UserRole;
+  createdAt: string;
+};
+
+export type ActivityAction =
+  | "login"
+  | "login_failed"
+  | "logout"
+  | "password_changed"
+  | "user_created"
+  | "user_deleted"
+  | "password_reset"
+  | "download"
+  | "upload"
+  | "upload_submitted"
+  | "upload_approved"
+  | "upload_rejected"
+  | "upload_cancelled"
+  | "sync_started";
+
+export type ActivityEntry = {
+  id: number;
+  occurredAt: string;
+  action: ActivityAction;
+  username: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  bookId: number | null;
+  details: Record<string, string | number | boolean | null>;
+};
+
+export type ActivityPage = {
+  items: ActivityEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Every name present in the log, for the user filter. */
+  usernames: string[];
+};
+
+export type MissingField = "cover" | "language" | "description";
+
+export type LibraryHealth = {
+  bookCount: number;
+  invalidFiles: { filePath: string; fileSize: number; error: string; detectedAt: string }[];
+  incompleteBooks: { id: number; title: string; authors: string[]; missing: MissingField[] }[];
+  similarAuthors: { names: { name: string; bookCount: number }[] }[];
+  syncRuns: SyncRun[];
 };

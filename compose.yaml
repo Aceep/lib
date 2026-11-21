@@ -3,9 +3,15 @@ services:
     build: .
     image: kyle-lib
     restart: unless-stopped
-    ports:
-      - "${PORT:-3000}:3000"
+    # Not published on the host: the only way in is through Caddy, over HTTPS.
+    expose:
+      - "3000"
     environment:
+      # First admin, created only while no account exists. Remove ADMIN_PASSWORD from .env afterwards.
+      ADMIN_USER: ${ADMIN_USER:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Caddy is the only client: its X-Forwarded-* headers carry the real address and protocol.
+      TRUST_PROXY: "true"
       # rclone source mirrored into /books; leave empty to index /books as is.
       RCLONE_REMOTE: ${RCLONE_REMOTE:-}
       # Cron pattern for automatic syncs, "off" to disable (default: every day at 04:00).
@@ -16,3 +22,21 @@ services:
       - ./books:/books
       # rclone.conf created with `rclone config` on the host; read-only, the app never writes it.
       - ${RCLONE_CONFIG_DIR:-~/.config/rclone}:/config/rclone:ro
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - kyle-lib
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and their private keys: keep this volume across updates.
+      - caddy_data:/data
+
+volumes:
+  caddy_data:

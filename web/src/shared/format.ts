@@ -50,3 +50,35 @@ export function countLabel(count: number, singular: string, plural = `${singular
 export function authorsLabel(authors: string[]): string {
   return authors.length > 0 ? authors.join(", ") : "Auteur inconnu";
 }
+
+const DEVICE_PATTERNS: [RegExp, string][] = [
+  [/Kobo/i, "Liseuse Kobo"],
+  [/Kindle|Silk/i, "Kindle"],
+  [/PocketBook/i, "Liseuse PocketBook"],
+  [/iPhone/i, "iPhone"],
+  [/iPad/i, "iPad"],
+  [/Android/i, "Android"],
+  [/Windows/i, "Windows"],
+  [/Macintosh|Mac OS X/i, "Mac"],
+  [/Linux|X11/i, "Linux"],
+];
+
+// Order matters: Edge and Opera also say "Chrome", and Chrome also says "Safari".
+const BROWSER_PATTERNS: [RegExp, string][] = [
+  [/Edg\//, "Edge"],
+  [/OPR\//, "Opera"],
+  [/Firefox\//, "Firefox"],
+  [/Chrome\//, "Chrome"],
+  [/Safari\//, "Safari"],
+  [/curl\//i, "curl"],
+];
+
+/** "Firefox · Windows" from a user-agent string: enough to tell the reader from the laptop in the activity log. */
+export function deviceLabel(userAgent: string | null): string {
+  if (!userAgent) {
+    return "Inconnu";
+  }
+  const device = DEVICE_PATTERNS.find(([pattern]) => pattern.test(userAgent))?.[1];
+  const browser = BROWSER_PATTERNS.find(([pattern]) => pattern.test(userAgent))?.[1];
+  return [browser, device].filter(Boolean).join(" · ") || userAgent.slice(0, 40);
+}

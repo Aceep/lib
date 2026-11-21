@@ -71,6 +71,63 @@ const MIGRATIONS: string[] = [
   ALTER TABLE books ADD COLUMN content_hash TEXT;
   CREATE INDEX books_content_hash ON books (content_hash);
   `,
+  `
+  CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('admin', 'member')),
+    created_at TEXT NOT NULL
+  );
+
+  -- Only the SHA-256 of the cookie value is stored: a leaked database does not hand out live sessions.
+  CREATE TABLE sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL
+  );
+  CREATE INDEX sessions_user ON sessions (user_id);
+  `,
+  `
+  CREATE TABLE activity_log (
+    id INTEGER PRIMARY KEY,
+    occurred_at TEXT NOT NULL,
+    action TEXT NOT NULL,
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    -- Kept next to user_id so the entry still names its author after the account is deleted.
+    username TEXT,
+    ip TEXT,
+    user_agent TEXT,
+    -- Not a foreign key: books come and go with syncs, the log must outlive them.
+    book_id INTEGER,
+    details_json TEXT
+  );
+  CREATE INDEX activity_log_occurred_at ON activity_log (occurred_at);
+  CREATE INDEX activity_log_action ON activity_log (action);
+  `,
+  `
+  -- Uploads from members wait here for an admin; the file itself sits in the staging directory as <id>.epub
+  -- while the row is pending. Decided rows stay so the member can see what became of their upload.
+  CREATE TABLE upload_submissions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    username TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    content_hash TEXT NOT NULL,
+    title TEXT NOT NULL,
+    authors_json TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+    submitted_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by TEXT,
+    reason TEXT,
+    book_id INTEGER
+  );
+  CREATE INDEX upload_submissions_user ON upload_submissions (user_id);
+  CREATE INDEX upload_submissions_status ON upload_submissions (status);
+  `,
 ];
 
 function migrate(database: LibraryDatabase): void {

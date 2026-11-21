@@ -104,6 +104,7 @@ export function createSyncService(options: SyncServiceOptions) {
        WHERE id = @id`,
     ),
     getRun: database.prepare<[number], SyncRunRow>("SELECT * FROM sync_runs WHERE id = ?"),
+    listRecent: database.prepare<[number], SyncRunRow>("SELECT * FROM sync_runs ORDER BY id DESC LIMIT ?"),
     lastFinished: database.prepare<[], SyncRunRow>(
       "SELECT * FROM sync_runs WHERE status != 'running' ORDER BY id DESC LIMIT 1",
     ),
@@ -177,6 +178,9 @@ export function createSyncService(options: SyncServiceOptions) {
         lastFinished: lastFinishedRow ? toSyncRun(lastFinishedRow) : null,
       };
     },
+
+    /** Latest runs first, the one in progress included. */
+    listRecentRuns: (limit: number): SyncRun[] => statements.listRecent.all(limit).map(toSyncRun),
 
     /** Resolves once the running sync, if any, has finished. */
     whenIdle(): Promise<void> {

@@ -1,6 +1,9 @@
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { buildApp } from "./api/build-app.js";
+import { createActivityLog } from "./activity/activity-log.js";
+import { createLibraryHealthQueries } from "./admin/library-health.js";
+import { createAuthService } from "./auth/auth-service.js";
 import { createCatalogQueries } from "./catalog/catalog-queries.js";
 import { loadConfig } from "./config.js";
 import { openLibraryDatabase } from "./db/database.js";
@@ -28,6 +31,7 @@ const sync = createSyncService({
 });
 const schedule = config.syncCron ? scheduleSync(config.syncCron, sync) : null;
 const uploads = await createUploadService({
+  database,
   store,
   booksDirectory: config.booksDirectory,
   coversDirectory: config.coversDirectory,
@@ -36,8 +40,25 @@ const uploads = await createUploadService({
   runCommand,
 });
 
+const auth = await createAuthService({ database });
+let createdInitialAdmin = false;
+if (!auth.hasUsers() && config.initialAdmin) {
+  await auth.createUser(config.initialAdmin.username, config.initialAdmin.password, "admin");
+  createdInitialAdmin = true;
+}
+
+const activity = createActivityLog({ database });
+activity.purgeOlderThan(config.activityRetentionDays);
+// The server stays up for months: purge daily, not only at start.
+const activityPurge = setInterval(() => activity.purgeOlderThan(config.activityRetentionDays), 24 * 60 * 60 * 1000);
+activityPurge.unref();
+
 const app = buildApp({
   catalog: createCatalogQueries(database),
+  auth,
+  activity,
+  health: createLibraryHealthQueries(database),
+  trustProxy: config.trustProxy,
   sync,
   uploads,
   nextScheduledSyncAt: () => schedule?.nextRunAt() ?? null,
@@ -64,3 +85,8 @@ app.log.info(
   { rcloneRemote: config.rcloneRemote, syncCron: config.syncCron, nextSyncAt: schedule?.nextRunAt() ?? null },
   "sync configuration",
 );
+if (createdInitialAdmin) {
+  app.log.info({ username: config.initialAdmin?.username }, "created the initial admin account; ADMIN_PASSWORD can now be removed from the environment");
+} else if (!auth.hasUsers()) {
+  app.log.warn("no user account exists: set ADMIN_USER and ADMIN_PASSWORD (12 characters or more) and restart to create the first admin");
+}

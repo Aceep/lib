@@ -1,4 +1,9 @@
-import type { BookDetails, BookPage, BookSort, CatalogFacets, SyncRun, SyncStatus, UploadPreview, UploadResult } from "./types.js";
+import type {
+  ActivityAction,
+  ActivityPage,
+  LibraryHealth,
+  UploadSubmission,
+  BookDetails, BookPage, BookSort, CatalogFacets, SyncRun, SyncStatus, UploadPreview, UploadResult, User, UserRole } from "./types.js";
 
 export class ApiError extends Error {
   constructor(
@@ -10,7 +15,10 @@ export class ApiError extends Error {
   }
 }
 
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+/** Fired when the server no longer recognises the session, so the app can fall back to the login page. */
+export const SESSION_ENDED_EVENT = "kyle-lib:session-ended";
+
+async function request(url: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(url, init);
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
@@ -18,9 +26,61 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
       typeof body === "object" && body !== null && "message" in body && typeof body.message === "string"
         ? body.message
         : `HTTP ${response.status}`;
+    // A failed login also answers 401, but there is no session to end then.
+    if (response.status === 401 && !url.startsWith("/api/auth/login")) {
+      document.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT));
+    }
     throw new ApiError(response.status, message);
   }
-  return (await response.json()) as T;
+  return response;
+}
+
+async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+  return (await (await request(url, init)).json()) as T;
+}
+
+function jsonBody(method: string, body: unknown): RequestInit {
+  return { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) };
+}
+
+/** The signed-in user, or null when there is no valid session. */
+export async function fetchCurrentUser(signal?: AbortSignal): Promise<User | null> {
+  const response = await fetch("/api/auth/me", { signal: signal ?? null });
+  if (response.status === 401) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new ApiError(response.status, `HTTP ${response.status}`);
+  }
+  return (await response.json()) as User;
+}
+
+export function login(username: string, password: string): Promise<User> {
+  return requestJson("/api/auth/login", jsonBody("POST", { username, password }));
+}
+
+export async function logout(): Promise<void> {
+  await request("/api/auth/logout", { method: "POST" });
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await request("/api/auth/password", jsonBody("POST", { currentPassword, newPassword }));
+}
+
+export function fetchUsers(signal?: AbortSignal): Promise<User[]> {
+  return requestJson("/api/admin/users", { signal: signal ?? null });
+}
+
+export function createUser(username: string, password: string, role: UserRole): Promise<User> {
+  return requestJson("/api/admin/users", jsonBody("POST", { username, password, role }));
+}
+
+export async function resetUserPassword(userId: number, password: string): Promise<void> {
+  await request(`/api/admin/users/${userId}/password`, jsonBody("POST", { password }));
+}
+
+export async function deleteUser(userId: number): Promise<void> {
+  await request(`/api/admin/users/${userId}`, { method: "DELETE" });
 }
 
 export type BookListParams = {
@@ -75,6 +135,40 @@ export function updateUpload(uploadId: string, changes: { title: string; authors
 
 export function confirmUpload(uploadId: string): Promise<UploadResult> {
   return requestJson(`/api/uploads/${uploadId}/confirm`, { method: "POST" });
+}
+
+/** A member's upload does not enter the library: it waits for an admin to confirm or reject it. */
+export function submitUpload(uploadId: string): Promise<UploadPreview> {
+  return requestJson(`/api/uploads/${uploadId}/submit`, { method: "POST" });
+}
+
+export function fetchMySubmissions(signal?: AbortSignal): Promise<UploadSubmission[]> {
+  return requestJson("/api/uploads/mine", { signal: signal ?? null });
+}
+
+export function fetchSubmittedUploads(signal?: AbortSignal): Promise<UploadPreview[]> {
+  return requestJson("/api/admin/uploads", { signal: signal ?? null });
+}
+
+export async function fetchSubmittedUploadCount(signal?: AbortSignal): Promise<number> {
+  return (await requestJson<{ count: number }>("/api/admin/uploads/count", { signal: signal ?? null })).count;
+}
+
+export async function rejectUpload(uploadId: string, reason: string): Promise<void> {
+  await request(`/api/admin/uploads/${uploadId}/reject`, jsonBody("POST", reason ? { reason } : {}));
+}
+
+export type ActivityParams = { action: ActivityAction | ""; username: string; page: number };
+
+export function fetchActivity(params: ActivityParams, signal?: AbortSignal): Promise<ActivityPage> {
+  const search = new URLSearchParams({ page: String(params.page) });
+  if (params.action) search.set("action", params.action);
+  if (params.username) search.set("username", params.username);
+  return requestJson(`/api/admin/activity?${search}`, { signal: signal ?? null });
+}
+
+export function fetchLibraryHealth(signal?: AbortSignal): Promise<LibraryHealth> {
+  return requestJson("/api/admin/health", { signal: signal ?? null });
 }
 
 export async function cancelUpload(uploadId: string): Promise<void> {

@@ -14,6 +14,12 @@ export type ServerConfig = {
   rcloneRemote: string | null;
   /** Cron pattern for automatic syncs, null when disabled. */
   syncCron: string | null;
+  /** True when a reverse proxy sits in front: client address and protocol are then read from its headers. */
+  trustProxy: boolean;
+  /** Activity log entries older than this are deleted. */
+  activityRetentionDays: number;
+  /** Account created on first start, when no user exists yet. Null once the variables are removed. */
+  initialAdmin: { username: string; password: string } | null;
 };
 
 const DEFAULT_SYNC_CRON = "0 4 * * *";
@@ -41,6 +47,23 @@ function parseSyncCron(rawPattern: string | undefined): string | null {
   return pattern.toLowerCase() === "off" ? null : pattern;
 }
 
+function parseRetentionDays(rawDays: string | undefined): number {
+  if (!rawDays?.trim()) {
+    return 365;
+  }
+  const days = Number(rawDays);
+  if (!Number.isInteger(days) || days < 1) {
+    throw new Error(`ACTIVITY_RETENTION_DAYS must be a positive integer, got "${rawDays}"`);
+  }
+  return days;
+}
+
+function parseInitialAdmin(environment: NodeJS.ProcessEnv): ServerConfig["initialAdmin"] {
+  const username = environment.ADMIN_USER?.trim();
+  const password = environment.ADMIN_PASSWORD;
+  return username && password ? { username, password } : null;
+}
+
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ServerConfig {
   const dataDirectory = directoryFromEnvironment(environment, "DATA_DIR", "data");
   return {
@@ -55,5 +78,8 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
     webDirectory: directoryFromEnvironment(environment, "WEB_DIR", path.join(import.meta.dirname, "../../web/dist")),
     rcloneRemote: environment.RCLONE_REMOTE?.trim() || null,
     syncCron: parseSyncCron(environment.SYNC_CRON),
+    trustProxy: ["1", "true"].includes(environment.TRUST_PROXY?.trim().toLowerCase() ?? ""),
+    activityRetentionDays: parseRetentionDays(environment.ACTIVITY_RETENTION_DAYS),
+    initialAdmin: parseInitialAdmin(environment),
   };
 }

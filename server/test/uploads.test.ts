@@ -51,7 +51,7 @@ async function setup(remote: string | null, library: Record<string, BookFixture>
     return { exitCode: rcloneExitCode, stderrTail: rcloneExitCode === 0 ? "" : "quota exceeded" };
   };
   const sync = createSyncService({ database, store, booksDirectory, coversDirectory, rcloneRemote: remote, runCommand, logError: () => {} });
-  const uploads = await createUploadService({ store, booksDirectory, coversDirectory, uploadsDirectory, rcloneRemote: remote, runCommand });
+  const uploads = await createUploadService({ database, store, booksDirectory, coversDirectory, uploadsDirectory, rcloneRemote: remote, runCommand });
   app = buildApp({ catalog: createCatalogQueries(database), sync, uploads, nextScheduledSyncAt: () => null, booksDirectory, coversDirectory });
 }
 

@@ -1,8 +1,9 @@
 import { type ChangeEvent, type DragEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { cancelUpload, confirmUpload, stageUpload, updateUpload } from "../api/client.js";
-import type { UploadDuplicate, UploadPreview, UploadResult } from "../api/types.js";
-import { fileSizeLabel } from "../shared/format.js";
+import { cancelUpload, confirmUpload, fetchMySubmissions, stageUpload, submitUpload, updateUpload } from "../api/client.js";
+import type { UploadDuplicate, UploadPreview, UploadResult, UploadSubmission, User } from "../api/types.js";
+import { authorsLabel, dateTimeLabel, fileSizeLabel } from "../shared/format.js";
+import { useAsync } from "../shared/use-async.js";
 import { useDebouncedValue } from "../shared/use-debounced-value.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
 
@@ -12,6 +13,7 @@ type UploadStep =
   | { step: "uploading" }
   | PreviewItem
   | { step: "added"; title: string; result: UploadResult }
+  | { step: "submitted"; title: string }
   | { step: "cancelled" }
   | { step: "error"; message: string };
 
@@ -25,7 +27,7 @@ const DUPLICATE_LABELS: Record<UploadDuplicate["reason"], string> = {
 
 const METADATA_DEBOUNCE_MS = 500;
 
-function DuplicateWarning({ duplicates }: { duplicates: UploadDuplicate[] }) {
+export function DuplicateWarning({ duplicates }: { duplicates: UploadDuplicate[] }) {
   if (duplicates.length === 0) {
     return null;
   }
@@ -45,14 +47,14 @@ function DuplicateWarning({ duplicates }: { duplicates: UploadDuplicate[] }) {
   );
 }
 
-type MetadataDraft = { title: string; authors: string[] };
+export type MetadataDraft = { title: string; authors: string[] };
 
 function sameDraft(left: MetadataDraft, right: MetadataDraft): boolean {
   return left.title === right.title && left.authors.length === right.authors.length && left.authors.every((author, index) => author === right.authors[index]);
 }
 
 /** Title and authors can be corrected; the destination and the duplicates follow after a short pause in typing. */
-function MetadataForm({ preview, disabled, onChange }: { preview: UploadPreview; disabled: boolean; onChange: (draft: MetadataDraft) => void }) {
+export function MetadataForm({ preview, disabled, onChange }: { preview: UploadPreview; disabled: boolean; onChange: (draft: MetadataDraft) => void }) {
   const [draft, setDraft] = useState<MetadataDraft>({ title: preview.title, authors: preview.authors.length > 0 ? preview.authors : [""] });
   const debouncedDraft = useDebouncedValue(draft, METADATA_DEBOUNCE_MS);
 
@@ -101,17 +103,27 @@ function MetadataForm({ preview, disabled, onChange }: { preview: UploadPreview;
 
 function PreviewCard({
   item,
+  needsReview,
   onMetadataChange,
   onConfirm,
   onCancel,
 }: {
   item: PreviewItem;
+  /** Members submit for an admin to validate; admins add directly. */
+  needsReview: boolean;
   onMetadataChange: (draft: MetadataDraft) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   const { preview } = item;
   const hasDuplicates = preview.duplicates.length > 0;
+  const confirmLabel = needsReview
+    ? hasDuplicates
+      ? "Soumettre quand même"
+      : "Soumettre pour validation"
+    : hasDuplicates
+      ? "Ajouter quand même"
+      : "Confirmer l'ajout";
   return (
     <>
       <MetadataForm preview={preview} disabled={item.busy} onChange={onMetadataChange} />
@@ -126,7 +138,7 @@ function PreviewCard({
       <DuplicateWarning duplicates={preview.duplicates} />
       <div className="upload-actions">
         <button type="button" className={hasDuplicates ? "button" : "button primary"} onClick={onConfirm} disabled={item.busy}>
-          {hasDuplicates ? "Ajouter quand même" : "Confirmer l'ajout"}
+          {confirmLabel}
         </button>
         <button type="button" onClick={onCancel} disabled={item.busy}>
           Annuler
@@ -151,6 +163,12 @@ function ItemStatus({ item }: { item: UploadItem }) {
           Ajouté : <Link to={`/books/${item.result.bookId}`}>{item.title}</Link> → <code>{item.result.filePath}</code>
         </p>
       );
+    case "submitted":
+      return (
+        <p className="upload-status upload-success" role="status">
+          « {item.title} » est envoyé. Il sera ajouté à la bibliothèque après validation par un administrateur.
+        </p>
+      );
     case "cancelled":
       return <p className="upload-status">Annulé, rien n'a été ajouté.</p>;
     case "error":
@@ -164,9 +182,43 @@ function ItemStatus({ item }: { item: UploadItem }) {
   }
 }
 
-/** Lets either of us add EPUBs: each file is previewed (destination, possible duplicates) and confirmed one by one. */
-export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void }) {
+const SUBMISSION_STATUS_LABELS: Record<UploadSubmission["status"], string> = {
+  pending: "En attente de validation",
+  approved: "Ajouté",
+  rejected: "Refusé",
+};
+
+function MySubmissions({ submissions }: { submissions: UploadSubmission[] }) {
+  if (submissions.length === 0) {
+    return null;
+  }
+  return (
+    <section className="admin-section">
+      <h2>Mes envois</h2>
+      <ul className="record-list">
+        {submissions.map((submission) => (
+          <li key={submission.id}>
+            <span className="record-main">
+              {submission.bookId !== null ? <Link to={`/books/${submission.bookId}`}>{submission.title}</Link> : submission.title}
+              <span className="record-secondary"> — {authorsLabel(submission.authors)}</span>
+            </span>
+            <span className={`status-tag is-${submission.status}`}>{SUBMISSION_STATUS_LABELS[submission.status]}</span>
+            <span className="record-secondary">
+              envoyé le {dateTimeLabel(submission.submittedAt)}
+              {submission.reason ? ` · motif : ${submission.reason}` : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Each file is previewed (destination, possible duplicates) first. Admins then add it; members send it for review. */
+export function UploadPage({ user, onLibraryChanged }: { user: User; onLibraryChanged: () => void }) {
   useDocumentTitle("Ajouter des livres");
+  const needsReview = user.role !== "admin";
+  const submissions = useAsync((signal) => (needsReview ? fetchMySubmissions(signal) : Promise.resolve([])), [needsReview]);
   const [items, setItems] = useState<UploadItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const nextKey = useRef(0);
@@ -218,6 +270,12 @@ export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void 
   async function handleConfirm(key: number, item: PreviewItem) {
     replaceItem(key, { ...item, busy: true, error: null });
     try {
+      if (needsReview) {
+        await submitUpload(item.preview.id);
+        replaceItem(key, { step: "submitted", title: item.preview.title });
+        submissions.reload();
+        return;
+      }
       const result = await confirmUpload(item.preview.id);
       replaceItem(key, { step: "added", title: item.preview.title, result });
       onLibraryChanged();
@@ -242,7 +300,7 @@ export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void 
         <h1>Ajouter des livres</h1>
         <p className="page-subtitle">
           Chaque EPUB est renommé d'après ses métadonnées (corrigeables si elles sont fausses), rangé dans <code>Books/Lettre/Auteur/</code> et
-          envoyé sur MEGA. Rien n'est ajouté avant confirmation.
+          envoyé sur MEGA. {needsReview ? "Un administrateur valide chaque envoi avant qu'il n'entre dans la bibliothèque." : "Rien n'est ajouté avant confirmation."}
         </p>
       </header>
       <div
@@ -268,6 +326,7 @@ export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void 
             {item.step === "preview" ? (
               <PreviewCard
                 item={item}
+                needsReview={needsReview}
                 onMetadataChange={(draft) => void handleMetadataChange(item.key, item.preview.id, draft)}
                 onConfirm={() => void handleConfirm(item.key, item)}
                 onCancel={() => void handleCancel(item.key, item)}
@@ -278,6 +337,7 @@ export function UploadPage({ onLibraryChanged }: { onLibraryChanged: () => void 
           </li>
         ))}
       </ul>
+      <MySubmissions submissions={submissions.data ?? []} />
     </main>
   );
 }
