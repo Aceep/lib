@@ -1,0 +1,15 @@
+# Local-network setup without Caddy, for a host whose ports 80/443 are taken (e.g. a Synology NAS, where DSM owns them).
+# Enable it from .env with COMPOSE_FILE=compose.yaml:compose.lan.yaml; compose.yaml stays the HTTPS setup.
+services:
+  kyle-lib:
+    # Must own ./data, ./books and ./rclone: on Synology, the uid/gid of the account that owns the shared folder.
+    user: "${PUID:-1000}:${PGID:-1000}"
+    ports:
+      - "${KYLE_LIB_PORT:-3000}:3000"
+    environment:
+      # Clients reach the app directly: trusting X-Forwarded-* would let anyone fake their IP and dodge the login lockout.
+      TRUST_PROXY: "false"
+
+  caddy:
+    # Only started with --profile https, which this setup never passes.
+    profiles: ["https"]

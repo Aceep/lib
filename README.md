@@ -43,6 +43,12 @@ uploads : à sauvegarder si l'on tient aux corrections de métadonnées faites d
 
 Mise à jour : `git pull && docker compose up -d --build`.
 
+Réseau local seulement, sans Caddy (par exemple sur un NAS Synology, dont DSM occupe les ports 80 et 443) : ajouter
+`COMPOSE_FILE=compose.yaml:compose.lan.yaml` au `.env`. L'appli est alors servie en HTTP sur `KYLE_LIB_PORT` (3000), le
+conteneur tourne avec `PUID`/`PGID` (le propriétaire de `./data`, `./books` et du dossier rclone) et `TRUST_PROXY` est
+coupé. Ne pas ouvrir ce port sur Internet. Depuis un poste de dev, `scripts/deploy.sh` envoie le dernier commit sur le
+serveur par SSH et reconstruit le conteneur (réglages dans `deploy.env`, voir l'en-tête du script).
+
 Sauvegarde : chaque nuit la base SQLite (comptes, corrections, journal, demandes) est copiée dans `./data/backups/`
 (14 jours conservés) et le dossier est miroité sur MEGA dans `_sauvegardes`, à côté de la bibliothèque. À la demande :
 `docker compose exec kyle-lib npm run backup -w server`. Restauration : arrêter le conteneur, remplacer
