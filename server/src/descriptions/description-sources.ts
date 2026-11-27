@@ -39,7 +39,7 @@ function isObject(value: unknown): value is Json {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function field(value: unknown, ...keys: string[]): unknown {
+export function field(value: unknown, ...keys: string[]): unknown {
   let current = value;
   for (const key of keys) {
     if (!isObject(current)) {
@@ -50,11 +50,11 @@ function field(value: unknown, ...keys: string[]): unknown {
   return current;
 }
 
-function list(value: unknown): unknown[] {
+export function list(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
-function text(value: unknown): string | null {
+export function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
@@ -137,7 +137,7 @@ export function surnames(authors: string[]): string[] {
 }
 
 /** True when the candidate credits one of the book's authors: the same family name somewhere in the names. */
-function creditsAuthor(candidateAuthors: string[], book: DescribedBook): boolean {
+export function creditsAuthor(candidateAuthors: string[], book: DescribedBook): boolean {
   const wanted = surnames(book.authors);
   if (wanted.length === 0) {
     // Nothing to check against: only an exact title match (verified by the caller) can be trusted.
@@ -148,7 +148,7 @@ function creditsAuthor(candidateAuthors: string[], book: DescribedBook): boolean
 }
 
 /** True when the candidate is called like the book, a subtitle aside ("La Locataire : thriller"). */
-function sameTitle(candidateTitle: string, book: DescribedBook): boolean {
+export function sameTitle(candidateTitle: string, book: DescribedBook): boolean {
   const wanted = titleKey(book.title);
   const candidate = titleKey(candidateTitle);
   return wanted !== "" && (candidate === wanted || candidate.startsWith(`${wanted} `));

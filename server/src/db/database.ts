@@ -231,6 +231,14 @@ const MIGRATIONS: string[] = [
   ALTER TABLE book_overrides ADD COLUMN description_source TEXT;
   ALTER TABLE book_overrides ADD COLUMN description_checked_at TEXT;
   `,
+  `
+  -- A cover found online for a file that carries none (covers/): cover_file is relative to the covers directory,
+  -- kept apart from books.cover_file because the indexer deletes and re-extracts that one whenever it re-reads the file.
+  -- cover_checked_at records the last lookup, successful or not, like description_checked_at.
+  ALTER TABLE book_overrides ADD COLUMN cover_file TEXT;
+  ALTER TABLE book_overrides ADD COLUMN cover_source TEXT;
+  ALTER TABLE book_overrides ADD COLUMN cover_checked_at TEXT;
+  `,
 ];
 
 function migrate(database: LibraryDatabase): void {

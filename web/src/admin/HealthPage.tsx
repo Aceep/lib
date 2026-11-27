@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
-import { correctBook, fetchLibraryHealth, fetchSeriesSuggestions, fillDescriptions, mergeAuthors, rewriteAuthor, setBooksLanguage } from "../api/client.js";
-import type { AuthorFix, AuthorlessBook, FillDescriptionsReport, LibraryHealth, MissingField, SeriesSuggestion, SwappedBook, SyncRun } from "../api/types.js";
+import { correctBook, fetchLibraryHealth, fetchSeriesSuggestions, fillCovers, fillDescriptions, mergeAuthors, rewriteAuthor, setBooksLanguage } from "../api/client.js";
+import type { AuthorFix, AuthorlessBook, FillCoversReport, FillDescriptionsReport, LibraryHealth, MissingField, SeriesSuggestion, SwappedBook, SyncRun } from "../api/types.js";
 import { authorsLabel, countLabel, dateTimeLabel, fileSizeLabel, languageLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
 import { useDocumentTitle } from "../shared/use-document-title.js";
@@ -412,8 +412,13 @@ function BooksWithoutLanguage({ books, onChanged }: { books: LibraryHealth["inco
   );
 }
 
-function fillSummary(report: FillDescriptionsReport): string {
-  const parts = [`${countLabel(report.found.length, "résumé trouvé", "résumés trouvés")} en ligne`];
+type FillWords = { found: [string, string]; remaining: [string, string] };
+
+const SUMMARY_WORDS: FillWords = { found: ["résumé trouvé", "résumés trouvés"], remaining: ["livre encore sans résumé", "livres encore sans résumé"] };
+const COVER_WORDS: FillWords = { found: ["couverture trouvée", "couvertures trouvées"], remaining: ["livre encore sans couverture", "livres encore sans couverture"] };
+
+function fillSummary(report: FillDescriptionsReport | FillCoversReport, words: FillWords): string {
+  const parts = [`${countLabel(report.found.length, ...words.found)} en ligne`];
   if (report.notFound.length > 0) {
     parts.push(`${report.notFound.length} introuvable${report.notFound.length > 1 ? "s" : ""}`);
   }
@@ -421,7 +426,7 @@ function fillSummary(report: FillDescriptionsReport): string {
     parts.push(`${report.postponed.length} à retenter (une source ne répondait pas)`);
   }
   if (report.remaining > 0) {
-    parts.push(`${countLabel(report.remaining, "livre encore sans résumé", "livres encore sans résumé")}`);
+    parts.push(countLabel(report.remaining, ...words.remaining));
   }
   const summary = `${parts.join(", ")}.`;
   const trouble = report.stoppedBecause ?? report.sourceErrors[0] ?? null;
@@ -429,7 +434,7 @@ function fillSummary(report: FillDescriptionsReport): string {
 }
 
 /** One batch of lookups per click; the sources are slow and shared, so a batch is kept short. */
-function FetchDescriptionsButton({ missingCount, onChanged }: { missingCount: number; onChanged: (message: string) => void }) {
+function FetchOnlineButton({ label, missingCount, fill, onChanged }: { label: string; missingCount: number; fill: () => Promise<string>; onChanged: (message: string) => void }) {
   const [isBusy, setIsBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -437,7 +442,7 @@ function FetchDescriptionsButton({ missingCount, onChanged }: { missingCount: nu
     setIsBusy(true);
     setErrorMessage(null);
     try {
-      onChanged(fillSummary(await fillDescriptions()));
+      onChanged(await fill());
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     }
@@ -450,7 +455,7 @@ function FetchDescriptionsButton({ missingCount, onChanged }: { missingCount: nu
   return (
     <p className="merge-actions">
       <button type="button" disabled={isBusy} onClick={() => void handleClick()}>
-        {isBusy ? "Recherche en cours…" : `Chercher les résumés manquants en ligne (${missingCount})`}
+        {isBusy ? "Recherche en cours…" : `${label} (${missingCount})`}
       </button>
       {errorMessage ? (
         <span className="error" role="alert">
@@ -471,7 +476,7 @@ export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void 
   const [fixMessage, setFixMessage] = useState<string | null>(null);
   const [mergeMessage, setMergeMessage] = useState<string | null>(null);
   const [authorMessage, setAuthorMessage] = useState<string | null>(null);
-  const [descriptionMessage, setDescriptionMessage] = useState<string | null>(null);
+  const [lookupMessage, setLookupMessage] = useState<string | null>(null);
 
   if (health.status === "error") {
     return (
@@ -634,16 +639,28 @@ export function HealthPage({ onLibraryChanged }: { onLibraryChanged: () => void 
         </ul>
       </Section>
 
-      {descriptionMessage ? (
+      {lookupMessage ? (
         <p className="form-success" role="status">
-          {descriptionMessage}
+          {lookupMessage}
         </p>
       ) : null}
       <Section title="Fiches incomplètes" count={incompleteBooks.length} emptyText="Chaque livre a une couverture, une langue et un résumé.">
-        <FetchDescriptionsButton
+        <FetchOnlineButton
+          label="Chercher les résumés manquants en ligne"
           missingCount={incompleteBooks.filter((book) => book.missing.includes("description")).length}
+          fill={async () => fillSummary(await fillDescriptions(), SUMMARY_WORDS)}
           onChanged={(message) => {
-            setDescriptionMessage(message);
+            setLookupMessage(message);
+            health.reload();
+            onLibraryChanged();
+          }}
+        />
+        <FetchOnlineButton
+          label="Chercher les couvertures manquantes en ligne"
+          missingCount={incompleteBooks.filter((book) => book.missing.includes("cover")).length}
+          fill={async () => fillSummary(await fillCovers(), COVER_WORDS)}
+          onChanged={(message) => {
+            setLookupMessage(message);
             health.reload();
             onLibraryChanged();
           }}

@@ -34,8 +34,8 @@ export class SourceError extends Error {
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 const OPEN_LIBRARY_SEARCH = "https://openlibrary.org/search.json";
 // Says what the client is and where to find its authors, as Wikimedia asks, without naming whoever runs this instance.
-const USER_AGENT = "kyle-lib/1.0 (self-hosted EPUB catalog; +https://github.com/Aceep/lib)";
-const REQUEST_TIMEOUT_MS = 20_000;
+export const USER_AGENT = "kyle-lib/1.0 (self-hosted EPUB catalog; +https://github.com/Aceep/lib)";
+export const REQUEST_TIMEOUT_MS = 20_000;
 
 const AUTHOR = "P50";
 const INSTANCE_OF = "P31";

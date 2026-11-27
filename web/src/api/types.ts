@@ -297,6 +297,10 @@ export type FillDescriptionsReport = {
   stoppedBecause: string | null;
 };
 
+export type FillCoversReport = Omit<FillDescriptionsReport, "found"> & {
+  found: { bookId: number; title: string; provider: "openlibrary" | "google-books" }[];
+};
+
 export type LibraryHealth = {
   bookCount: number;
   invalidFiles: { filePath: string; fileSize: number; error: string; detectedAt: string }[];

@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { LibraryDatabase } from "../db/database.js";
+import { EFFECTIVE_COVER_FILE } from "../db/library-store.js";
 import { toSortKey } from "../db/sort-key.js";
 import { parseAuthor } from "../library/file-naming.js";
 import { titleKey } from "../missing/title-key.js";
@@ -165,11 +166,11 @@ export function createLibraryHealthQueries(database: LibraryDatabase) {
             SELECT authors.name FROM book_authors JOIN authors ON authors.id = book_authors.author_id
             WHERE book_authors.book_id = books.id ORDER BY book_authors.position
          )) AS authors_json,
-         books.cover_file IS NOT NULL AS has_cover,
+         ${EFFECTIVE_COVER_FILE} IS NOT NULL AS has_cover,
          coalesce(books.language, '') != '' AS has_language,
          coalesce(books.description, '') != '' AS has_description
        FROM books
-       WHERE books.cover_file IS NULL OR coalesce(books.language, '') = '' OR coalesce(books.description, '') = ''
+       WHERE ${EFFECTIVE_COVER_FILE} IS NULL OR coalesce(books.language, '') = '' OR coalesce(books.description, '') = ''
        ORDER BY books.sort_title`,
     ),
     listAuthors: database.prepare<[], AuthorRow>(

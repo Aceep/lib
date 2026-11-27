@@ -8,6 +8,7 @@ import type {
   WorkDecision,
   BookCorrection,
   ActivityPage,
+  FillCoversReport,
   FillDescriptionsReport,
   LibraryHealth,
   SeriesReport,
@@ -260,6 +261,11 @@ export function fetchLibraryHealth(signal?: AbortSignal): Promise<LibraryHealth>
 /** Looks up, online, a summary for one batch of the books whose file has none. */
 export function fillDescriptions(): Promise<FillDescriptionsReport> {
   return requestJson("/api/admin/descriptions/fill", { method: "POST" });
+}
+
+/** Looks up, online, a cover for one batch of the books whose file has none. */
+export function fillCovers(): Promise<FillCoversReport> {
+  return requestJson("/api/admin/covers/fill", { method: "POST" });
 }
 
 export async function cancelUpload(uploadId: string): Promise<void> {

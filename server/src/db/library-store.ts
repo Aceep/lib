@@ -65,6 +65,16 @@ export type UndescribedBook = {
 
 type UndescribedBookRow = { id: number; content_hash: string; title: string; language: string | null };
 
+/** A book whose file carries no cover, for the lookup of one online. */
+export type CoverlessBook = UndescribedBook;
+
+/**
+ * The cover a reader sees: the one in the file, else one found online for that very file. A correlated subquery
+ * rather than a join so it fits every query on books, whatever else they join.
+ */
+export const EFFECTIVE_COVER_FILE = `coalesce(books.cover_file,
+  (SELECT book_overrides.cover_file FROM book_overrides WHERE book_overrides.content_hash = books.content_hash))`;
+
 type StoredBookRow = {
   id: number;
   file_path: string;
@@ -221,6 +231,27 @@ export function createLibraryStore(database: LibraryDatabase) {
     ),
     countUndescribed: database.prepare<[], { total: number }>(
       "SELECT COUNT(*) AS total FROM books WHERE coalesce(trim(description), '') = ''",
+    ),
+    upsertFetchedCover: database.prepare<[string, string, string, string, string]>(
+      `INSERT INTO book_overrides (content_hash, cover_file, cover_source, cover_checked_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (content_hash) DO UPDATE SET cover_file = excluded.cover_file, cover_source = excluded.cover_source,
+         cover_checked_at = excluded.cover_checked_at`,
+    ),
+    markCoverChecked: database.prepare<[string, string, string]>(
+      `INSERT INTO book_overrides (content_hash, cover_checked_at, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT (content_hash) DO UPDATE SET cover_checked_at = excluded.cover_checked_at`,
+    ),
+    // Books whose file has no cover and that have none from online either; never looked up or not since the given date.
+    listCoverless: database.prepare<[string, number], UndescribedBookRow>(
+      `SELECT books.id, books.content_hash, books.title, books.language
+       FROM books LEFT JOIN book_overrides ON book_overrides.content_hash = books.content_hash
+       WHERE books.cover_file IS NULL AND book_overrides.cover_file IS NULL AND books.content_hash IS NOT NULL
+         AND (book_overrides.cover_checked_at IS NULL OR book_overrides.cover_checked_at < ?)
+       ORDER BY books.added_at DESC, books.id DESC LIMIT ?`,
+    ),
+    countCoverless: database.prepare<[], { total: number }>(
+      `SELECT COUNT(*) AS total FROM books WHERE ${EFFECTIVE_COVER_FILE} IS NULL`,
     ),
     upsertOverride: database.prepare<{
       contentHash: string;
@@ -515,6 +546,30 @@ export function createLibraryStore(database: LibraryDatabase) {
     /** Records that nothing was found online for this file, so it is not looked up again for a while. */
     markDescriptionChecked(contentHash: string, now: Date): void {
       statements.markDescriptionChecked.run(contentHash, now.toISOString(), now.toISOString());
+    },
+
+    /** Books whose file carries no cover, skipping those looked up online since `notCheckedSince`. */
+    listCoverlessBooks(notCheckedSince: Date, limit: number): CoverlessBook[] {
+      return statements.listCoverless.all(notCheckedSince.toISOString(), limit).map((row) => ({
+        bookId: row.id,
+        contentHash: row.content_hash,
+        title: row.title,
+        authors: statements.listAuthorNames.all(row.id).map((author) => author.name),
+        language: row.language,
+      }));
+    },
+
+    countCoverlessBooks: (): number => statements.countCoverless.get()?.total ?? 0,
+
+    /** Remembers a cover found online against the file's hash; `coverFile` is relative to the covers directory. */
+    setFetchedCover(contentHash: string, coverFile: string, source: string, now: Date): void {
+      const timestamp = now.toISOString();
+      statements.upsertFetchedCover.run(contentHash, coverFile, source, timestamp, timestamp);
+    },
+
+    /** Records that no cover was found online for this file, so it is not looked up again for a while. */
+    markCoverChecked(contentHash: string, now: Date): void {
+      statements.markCoverChecked.run(contentHash, now.toISOString(), now.toISOString());
     },
 
     deleteBook: database.transaction((bookId: number): void => {

@@ -14,6 +14,8 @@ import { createCatalogQueries } from "./catalog/catalog-queries.js";
 import { loadConfig } from "./config.js";
 import { openLibraryDatabase } from "./db/database.js";
 import { createLibraryStore } from "./db/library-store.js";
+import { createCoverSources } from "./covers/cover-sources.js";
+import { createCoverFiller } from "./covers/fill-covers.js";
 import { createDescriptionSources } from "./descriptions/description-sources.js";
 import { createDescriptionFiller } from "./descriptions/fill-descriptions.js";
 import { runCommand } from "./sync/run-command.js";
@@ -30,6 +32,7 @@ let logError: (message: string, error: unknown) => void = (message, error) => co
 let logInfo: (details: object, message: string) => void = (details, message) => console.log(message, details);
 
 const descriptions = createDescriptionFiller({ store, sources: createDescriptionSources({ googleBooksApiKey: config.googleBooksApiKey }) });
+const covers = createCoverFiller({ store, sources: createCoverSources({ googleBooksApiKey: config.googleBooksApiKey }), coversDirectory: config.coversDirectory });
 const sync = createSyncService({
   database,
   store,
@@ -38,13 +41,20 @@ const sync = createSyncService({
   rcloneRemote: config.rcloneRemote,
   runCommand,
   logError: (message, error) => logError(message, error),
-  // New arrivals rarely carry a summary; look one up right after they are indexed.
+  // New arrivals rarely carry a summary or a cover; look them up right after they are indexed.
   afterIndex: async () => {
     const report = await descriptions.fillMissing();
     if (report.checked > 0 || report.stoppedBecause) {
       logInfo(
         { found: report.found.length, notFound: report.notFound.length, postponed: report.postponed.length, remaining: report.remaining, sourceErrors: report.sourceErrors, stoppedBecause: report.stoppedBecause },
         "summaries looked up online",
+      );
+    }
+    const coverReport = await covers.fillMissing();
+    if (coverReport.checked > 0 || coverReport.stoppedBecause) {
+      logInfo(
+        { found: coverReport.found.length, notFound: coverReport.notFound.length, postponed: coverReport.postponed.length, remaining: coverReport.remaining, sourceErrors: coverReport.sourceErrors, stoppedBecause: coverReport.stoppedBecause },
+        "covers looked up online",
       );
     }
   },
@@ -94,6 +104,7 @@ const app = buildApp({
   sync,
   uploads,
   descriptions,
+  covers,
   nextScheduledSyncAt: () => schedule?.nextRunAt() ?? null,
   booksDirectory: config.booksDirectory,
   coversDirectory: config.coversDirectory,

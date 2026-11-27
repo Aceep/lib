@@ -1,5 +1,6 @@
 import { authorListName, authorSortKey } from "../admin/author-cleanup.js";
 import type { LibraryDatabase } from "../db/database.js";
+import { EFFECTIVE_COVER_FILE } from "../db/library-store.js";
 
 export type BookSort = "relevance" | "title" | "recent";
 
@@ -120,7 +121,7 @@ export type CatalogQueries = ReturnType<typeof createCatalogQueries>;
 export function createCatalogQueries(database: LibraryDatabase) {
   const bookDetailsStatement = database.prepare<[number], BookDetailsRow>(
     // The source is only shown while the summary displayed is the one found online, not one the file gained since.
-    `SELECT books.id, books.title, books.language, books.series, books.series_index, books.cover_file, books.description, books.file_size,
+    `SELECT books.id, books.title, books.language, books.series, books.series_index, ${EFFECTIVE_COVER_FILE} AS cover_file, books.description, books.file_size,
             books.added_at, books.updated_at, ${AUTHORS_JSON_COLUMN},
             CASE WHEN book_overrides.description = books.description THEN book_overrides.description_source END AS description_source
      FROM books LEFT JOIN book_overrides ON book_overrides.content_hash = books.content_hash
@@ -130,7 +131,7 @@ export function createCatalogQueries(database: LibraryDatabase) {
     "SELECT file_path FROM books WHERE id = ?",
   );
   const coverFileStatement = database.prepare<[number], { cover_file: string | null }>(
-    "SELECT cover_file FROM books WHERE id = ?",
+    `SELECT ${EFFECTIVE_COVER_FILE} AS cover_file FROM books WHERE id = ?`,
   );
   const authorFacetStatement = database.prepare<[], { name: string; book_count: number }>(
     `SELECT authors.name, COUNT(*) AS book_count
@@ -190,7 +191,7 @@ export function createCatalogQueries(database: LibraryDatabase) {
         .get(parameters);
       const rows = database
         .prepare<Record<string, string | number>, BookRow>(
-          `SELECT books.id, books.title, books.language, books.series, books.series_index, books.cover_file, books.added_at, ${AUTHORS_JSON_COLUMN}
+          `SELECT books.id, books.title, books.language, books.series, books.series_index, ${EFFECTIVE_COVER_FILE} AS cover_file, books.added_at, ${AUTHORS_JSON_COLUMN}
            ${fromClause} ${whereClause}
            ${filters.series && filters.sort !== "recent" ? SERIES_ORDER : orderByClause(filters.sort, fullTextQuery !== null)}
            LIMIT @limit OFFSET @offset`,
