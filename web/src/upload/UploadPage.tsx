@@ -1,7 +1,7 @@
 import { type ChangeEvent, type DragEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { cancelUpload, confirmUpload, fetchMySubmissions, stageUpload, submitUpload, updateUpload } from "../api/client.js";
-import type { UploadDuplicate, UploadPreview, UploadResult, UploadSubmission, User } from "../api/types.js";
+import type { UploadDoubt, UploadDuplicate, UploadPreview, UploadResult, UploadSubmission, User } from "../api/types.js";
 import { authorsLabel, dateTimeLabel, fileSizeLabel } from "../shared/format.js";
 import { useAsync } from "../shared/use-async.js";
 import { useDebouncedValue } from "../shared/use-debounced-value.js";
@@ -24,6 +24,14 @@ const DUPLICATE_LABELS: Record<UploadDuplicate["reason"], string> = {
   identical: "fichier strictement identique",
   "same-book": "même titre et mêmes auteurs",
   "same-path": "un fichier porte déjà ce nom",
+};
+
+// "duplicate" has its own warning, with the books it duplicates.
+const DOUBT_LABELS: Record<Exclude<UploadDoubt, "duplicate">, string> = {
+  "no-title": "le fichier n'a pas de vrai titre",
+  "no-author": "le fichier n'indique pas d'auteur",
+  swapped: "le titre et l'auteur semblent inversés",
+  "author-field": "le nom d'auteur est mal formé (ordre, majuscules ou plusieurs personnes dans un seul champ)",
 };
 
 const METADATA_DEBOUNCE_MS = 500;
@@ -137,6 +145,7 @@ function PreviewCard({
         <dd>{fileSizeLabel(preview.fileSize)}</dd>
       </dl>
       <DuplicateWarning duplicates={preview.duplicates} />
+      <DoubtWarning doubts={preview.doubts} />
       <div className="upload-actions">
         <button type="button" className={hasDuplicates ? "button" : "button primary"} onClick={onConfirm} disabled={item.busy}>
           {confirmLabel}
@@ -151,6 +160,23 @@ function PreviewCard({
         </p>
       ) : null}
     </>
+  );
+}
+
+function DoubtWarning({ doubts }: { doubts: UploadDoubt[] }) {
+  const reasons = doubts.flatMap((doubt) => (doubt === "duplicate" ? [] : [DOUBT_LABELS[doubt]]));
+  if (reasons.length === 0) {
+    return null;
+  }
+  return (
+    <div className="upload-warning" role="alert">
+      <strong>À vérifier avant l'ajout :</strong>
+      <ul>
+        {reasons.map((reason) => (
+          <li key={reason}>{reason}</li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -251,7 +277,12 @@ export function UploadPage({ user, onLibraryChanged }: { user: User; onLibraryCh
       setItems((current) => [...current, { key, fileName: file.name, step: "uploading" }]);
       try {
         const preview = await stageUpload(file);
-        replaceItem(key, { step: "preview", preview, busy: false, error: null });
+        const item: PreviewItem = { step: "preview", preview, busy: false, error: null };
+        replaceItem(key, item);
+        // Nothing to check on this one: it goes in (or off to review) without waiting for a click.
+        if (preview.doubts.length === 0) {
+          await handleConfirm(key, item);
+        }
       } catch (error) {
         replaceItem(key, { step: "error", message: (error as Error).message });
       }
@@ -301,7 +332,9 @@ export function UploadPage({ user, onLibraryChanged }: { user: User; onLibraryCh
         <h1>Ajouter des livres</h1>
         <p className="page-subtitle">
           Chaque EPUB est renommé d'après ses métadonnées (corrigeables si elles sont fausses), rangé dans <code>Books/Lettre/Auteur/</code> et
-          envoyé sur MEGA. {needsReview ? "Un administrateur valide chaque envoi avant qu'il n'entre dans la bibliothèque." : "Rien n'est ajouté avant confirmation."}
+          envoyé sur MEGA. {needsReview
+            ? "Un fichier dont la fiche ne pose aucun doute part directement en validation ; un administrateur valide chaque envoi avant qu'il n'entre dans la bibliothèque."
+            : "Un fichier dont la fiche ne pose aucun doute est ajouté directement ; les autres attendent votre confirmation."}
         </p>
       </header>
       <div

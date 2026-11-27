@@ -4,6 +4,8 @@ import { copyFile, mkdir, readdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { peopleInAuthorField, swappedTitlePeople } from "../admin/author-cleanup.js";
+import { authorIdentityKey } from "../admin/library-health.js";
 import type { UserRole } from "../auth/auth-service.js";
 import type { LibraryDatabase } from "../db/database.js";
 import type { ExistingBook, LibraryStore } from "../db/library-store.js";
@@ -18,6 +20,26 @@ export type DuplicateReason = "identical" | "same-book" | "same-path";
 
 export type UploadDuplicate = ExistingBook & { reason: DuplicateReason };
 
+/**
+ * Why a file cannot go in without someone looking at it first: it may already be in the library, or its record
+ * is incomplete or looks mistyped. An upload with no doubt is added (or sent for review) without a click.
+ */
+export type UploadDoubt = "duplicate" | "no-title" | "no-author" | "swapped" | "author-field";
+
+// What tagging tools write when they know nothing; compared on the sort key, so case and accents do not matter.
+const PLACEHOLDER_NAMES = new Set(["unknown", "inconnu", "inconnue", "untitled", "sans titre", "unknown author", "auteur inconnu"]);
+
+function isPlaceholder(value: string): boolean {
+  const key = toSortKey(value).trim();
+  return key === "" || PLACEHOLDER_NAMES.has(key);
+}
+
+/** True when the health report would offer to rewrite this author field ("Atwood, Margaret", "A et B", "Dan SIMMONS"). */
+function needsRewriting(author: string): boolean {
+  const people = peopleInAuthorField(author);
+  return people.length !== 1 || people[0] !== author;
+}
+
 /** What the user sees before confirming: where the file would go and what it may duplicate. */
 export type UploadPreview = {
   id: string;
@@ -28,6 +50,8 @@ export type UploadPreview = {
   language: string | null;
   targetPath: string;
   duplicates: UploadDuplicate[];
+  /** Empty when the file can go in as it is; see UploadDoubt. */
+  doubts: UploadDoubt[];
   /** draft: only its uploader has seen it; submitted: waiting for an admin to approve or reject it. */
   status: "draft" | "submitted";
   uploadedBy: string;
@@ -150,6 +174,7 @@ export async function createUploadService(options: UploadServiceOptions) {
   const pending = new Map<string, PendingUpload>();
 
   const statements = {
+    listAuthorNames: database.prepare<[], { name: string }>("SELECT name FROM authors"),
     listPendingRows: database.prepare<[], SubmissionRow>("SELECT * FROM upload_submissions WHERE status = 'pending' ORDER BY submitted_at"),
     listByUser: database.prepare<[number, number], SubmissionRow>(
       "SELECT * FROM upload_submissions WHERE user_id = ? ORDER BY submitted_at DESC LIMIT ?",
@@ -261,6 +286,28 @@ export async function createUploadService(options: UploadServiceOptions) {
     return duplicates;
   }
 
+  function findDoubts(metadata: EpubMetadata, duplicates: UploadDuplicate[]): UploadDoubt[] {
+    const doubts: UploadDoubt[] = [];
+    if (duplicates.length > 0) {
+      doubts.push("duplicate");
+    }
+    if (isPlaceholder(metadata.title)) {
+      doubts.push("no-title");
+    }
+    const realAuthors = metadata.authors.filter((author) => !isPlaceholder(author));
+    if (realAuthors.length === 0) {
+      doubts.push("no-author");
+    }
+    const knownAuthors = new Set(statements.listAuthorNames.all().map((author) => authorIdentityKey(author.name)));
+    if (swappedTitlePeople(metadata.title, metadata.authors, (name) => knownAuthors.has(authorIdentityKey(name)))) {
+      doubts.push("swapped");
+    }
+    if (realAuthors.some(needsRewriting)) {
+      doubts.push("author-field");
+    }
+    return doubts;
+  }
+
   function getPending(id: string, actor: UploadActor): PendingUpload {
     const upload = pending.get(id);
     // Someone else's upload answers like a missing one: its existence is not the member's business.
@@ -276,6 +323,7 @@ export async function createUploadService(options: UploadServiceOptions) {
   ): UploadPreview {
     const { metadata, contentHash } = upload;
     const targetPath = proposeName(metadata).path;
+    const duplicates = findDuplicates(contentHash, metadata, targetPath);
     return {
       id: base.id,
       originalName: base.originalName,
@@ -287,7 +335,8 @@ export async function createUploadService(options: UploadServiceOptions) {
       authors: metadata.authors,
       language: metadata.language,
       targetPath,
-      duplicates: findDuplicates(contentHash, metadata, targetPath),
+      duplicates,
+      doubts: findDoubts(metadata, duplicates),
     };
   }
 

@@ -72,6 +72,8 @@ export type UploadDuplicate = {
   reason: "identical" | "same-book" | "same-path";
 };
 
+export type UploadDoubt = "duplicate" | "no-title" | "no-author" | "swapped" | "author-field";
+
 export type UploadPreview = {
   id: string;
   originalName: string;
@@ -81,6 +83,8 @@ export type UploadPreview = {
   language: string | null;
   targetPath: string;
   duplicates: UploadDuplicate[];
+  /** Empty when the file can go in without anyone looking at it; it is then added (or sent for review) at once. */
+  doubts: UploadDoubt[];
   /** draft: only its uploader has seen it; submitted: waiting for an admin. */
   status: "draft" | "submitted";
   uploadedBy: string;

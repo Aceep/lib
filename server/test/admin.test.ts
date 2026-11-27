@@ -294,6 +294,34 @@ describe("uploads from an admin", () => {
   });
 });
 
+describe("doubts on an upload", () => {
+  const doubtsOf = async (title: string, authors: string[]) => (await stage(await adminSession(), title, authors)).doubts;
+
+  it("has none for a new book with a clean record, so it can go in without a click", async () => {
+    expect(await doubtsOf("Hyperion", ["Dan Simmons"])).toEqual([]);
+  });
+
+  it("flags a book the library already has", async () => {
+    const [title, authors] = ["Dune", database.prepare<[], { name: string }>("SELECT name FROM authors").all().map((author) => author.name)];
+
+    expect(await doubtsOf(title, authors)).toContain("duplicate");
+  });
+
+  it("flags a placeholder title and a missing or placeholder author", async () => {
+    expect(await doubtsOf("Unknown", ["Dan Simmons"])).toEqual(["no-title"]);
+    expect(await doubtsOf("Hyperion", ["Inconnu"])).toEqual(["no-author"]);
+  });
+
+  it("flags an author field the health report would rewrite", async () => {
+    expect(await doubtsOf("La Servante écarlate", ["Atwood, Margaret"])).toEqual(["author-field"]);
+    expect(await doubtsOf("Hyperion", ["Dan SIMMONS"])).toEqual(["author-field"]);
+  });
+
+  it("flags a title and an author that look swapped", async () => {
+    expect(await doubtsOf("Laurent Gaudé", ["Chien 51"])).toContain("swapped");
+  });
+});
+
 describe("GET /api/admin/activity", () => {
   it("is closed to members", async () => {
     expect((await app.inject({ method: "GET", url: "/api/admin/activity", headers: await sessionOf("bob") })).statusCode).toBe(403);
