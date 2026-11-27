@@ -35,17 +35,24 @@ git archive --format=tar HEAD | ssh "$DEPLOY_HOST" "cat > '${archive}'"
 
 # One terminal session so sudo asks for the password once. Rebuilding restarts the container, which would cut
 # short whatever rclone is doing (sync, upload push, backup), so the files are only replaced when it is idle.
+# sudo's secure_path leaves out /usr/local/bin, where Synology's Container Manager installs docker.
 ssh -t "$DEPLOY_HOST" "
   set -e
   cd '${deploy_dir}'
-  if sudo docker compose exec -T kyle-lib sh -c 'grep -qx rclone /proc/[0-9]*/comm' 2>/dev/null; then
+  docker_bin=\$(command -v docker || echo /usr/local/bin/docker)
+  if [ ! -x \"\$docker_bin\" ]; then
+    rm -f '${archive}'
+    echo 'docker not found on the NAS (looked in PATH and /usr/local/bin).' >&2
+    exit 2
+  fi
+  if sudo \"\$docker_bin\" compose exec -T kyle-lib sh -c 'grep -qx rclone /proc/[0-9]*/comm' 2>/dev/null; then
     rm -f '${archive}'
     echo 'rclone is running in the container (sync, upload or backup): try again once it has finished.' >&2
     exit 3
   fi
   tar -xf '${archive}' && rm -f '${archive}'
   printf '%s\n' '${commit}' > .deployed-commit
-  sudo docker compose up -d --build
+  sudo \"\$docker_bin\" compose up -d --build
 "
 
 echo "Waiting for the catalog to answer on ${app_url}"
