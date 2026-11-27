@@ -184,6 +184,8 @@ export function createLibraryStore(database: LibraryDatabase) {
     deleteOrphanAuthors: database.prepare<[]>(
       "DELETE FROM authors WHERE id NOT IN (SELECT author_id FROM book_authors)",
     ),
+    // authors.name is COLLATE NOCASE, so this matches the row whatever its current capitalisation.
+    renameAuthor: database.prepare<[string, string, string]>("UPDATE authors SET name = ?, sort_name = ? WHERE name = ?"),
     deleteSearchEntry: database.prepare<[number]>("DELETE FROM books_fts WHERE rowid = ?"),
     insertSearchEntry: database.prepare<[number, string, string, string]>(
       "INSERT INTO books_fts (rowid, title, authors, description) VALUES (?, ?, ?, ?)",
@@ -530,6 +532,14 @@ export function createLibraryStore(database: LibraryDatabase) {
 
     deleteOrphanAuthors(): void {
       statements.deleteOrphanAuthors.run();
+    },
+
+    /**
+     * Gives an author exactly this spelling. Saving a book never changes the capitalisation of an author that already
+     * exists ("Dan SIMMONS" stays so when a book says "Dan Simmons"), so an admin's choice has to be written explicitly.
+     */
+    setAuthorSpelling(name: string): void {
+      statements.renameAuthor.run(name, toSortKey(name), name);
     },
 
     deleteOrphanGenres(): void {

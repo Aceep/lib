@@ -941,6 +941,30 @@ describe("POST /api/admin/authors/merge", () => {
     expect((await authorFacets(admin)).map(([name]) => name)).toContain("Brian P. Herbert");
     expect((await authorFacets(admin)).map(([name]) => name)).not.toContain("Brian Herbert");
   });
+
+  it("fixes the capitalisation of an author, and keeps it after a re-index", async () => {
+    const admin = await adminSession();
+    await writeBook(path.join(booksDirectory, "hyperion.epub"), "Hyperion", ["Dan SIMMONS"]);
+    await writeBook(path.join(booksDirectory, "endymion.epub"), "Endymion", ["SIMMONS DAN"]);
+    await reindexEverything();
+
+    await app.inject({ method: "POST", url: "/api/admin/authors/merge", headers: admin, payload: { from: ["Dan SIMMONS", "SIMMONS DAN"], into: "Dan Simmons" } });
+
+    expect(await authorFacets(admin)).toContainEqual(["Dan Simmons", 2]);
+    await reindexEverything();
+    expect(await authorFacets(admin)).toContainEqual(["Dan Simmons", 2]);
+    expect((await authorFacets(admin)).map(([name]) => name)).not.toContain("Dan SIMMONS");
+  });
+
+  it("fixes the capitalisation of an author field rewritten in place", async () => {
+    const admin = await adminSession();
+    await writeBook(path.join(booksDirectory, "bussi.epub"), "Nymphéas noirs", ["Michel BUSSI"]);
+    await reindexEverything();
+
+    await app.inject({ method: "POST", url: "/api/admin/authors/rewrite", headers: admin, payload: { from: "Michel BUSSI", into: ["Michel Bussi"] } });
+
+    expect(await authorFacets(admin)).toContainEqual(["Michel Bussi", 1]);
+  });
 });
 
 describe("DELETE /api/admin/books/:id", () => {

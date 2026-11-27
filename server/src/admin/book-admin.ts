@@ -118,6 +118,7 @@ export function createBookAdmin(options: BookAdminOptions) {
         const authors = book.authors.map((author) => (replaced.has(author) ? target : author));
         await correct(bookId, { ...book, authors }, editor);
       }
+      store.setAuthorSpelling(target);
       store.deleteOrphanAuthors();
       return { into: target, changedBooks: bookIds.size };
     },
@@ -136,6 +137,9 @@ export function createBookAdmin(options: BookAdminOptions) {
         const book = getBook(bookId);
         const authors = [...new Set(book.authors.flatMap((author) => (author === from ? people : [author])))];
         await correct(bookId, { ...book, authors }, editor);
+      }
+      for (const person of people) {
+        store.setAuthorSpelling(person);
       }
       store.deleteOrphanAuthors();
       return { into: people, changedBooks: bookIds.length };
